@@ -1,0 +1,4 @@
+.pytest_cache
+myenv
+.env
+*/__cache__/
