@@ -2,10 +2,10 @@ from src.model_hub import ModelHub
 from src.run_pytest import run_make_report
 import os
 import pathlib
-
+from typing import Literal
 
 class Agent(object):
-    def __init__(self) -> None:    
+    def __init__(self, model_url: Literal['gemini','codellama','openllama','openllama_7b']) -> None:    
         self.prompt = f"""Using pytest package in Python, write a testcase for the following Python file which include
         may contains many Python functions (denote by def keyword). Don't include content of function in your result, 
         only testing functions. You must import functions from 'Module path'
@@ -15,7 +15,7 @@ class Agent(object):
         {{file_content}}
         
         """
-        self.model = ModelHub.get_model(model= 'gemini')
+        self.model = ModelHub.get_model(model= model_url)
     
     def _read_file(self, file_path:str)->str:
         with open(file_path, 'r') as f:

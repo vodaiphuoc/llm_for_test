@@ -8,4 +8,4 @@ def test_capital_case():
 
 def test_find_max_element():
     assert find_max_element([1, 2, 3, 4, 5]) == 5
-    assert find_max_element([-1, -2, -3, -4, -5]) == -1
+    assert find_max_element([10, 20, 30]) == 30

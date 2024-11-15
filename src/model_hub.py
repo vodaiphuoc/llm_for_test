@@ -71,7 +71,7 @@ class ModelHub(object):
             'context_length': 16384,
             'model_class': 'HuggingfaceModel'
         },
-        'openllama':{
+        'openllama_3b':{
             'model_url':"openlm-research/open_llama_3b",
             'context_length': 16384,
             'model_class': 'HuggingfaceModel'
