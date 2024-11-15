@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.290" timestamp="2024-11-15T08:05:51.705128+00:00" hostname="DESKTOP-KB5LV5R"><testcase classname="" name="codes.implements_test_cases.test_my_function" time="0.000"><error message="collection failure">ImportError while importing test module 'D:\Projects\Test_coverage_LLM\test_run\codes\implements_test_cases\test_my_function.py'.
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.200" timestamp="2024-11-15T08:43:54.535156+00:00" hostname="DESKTOP-KB5LV5R"><testcase classname="" name="codes.implements_test_cases.test_my_function" time="0.000"><error message="collection failure">ImportError while importing test module 'D:\Projects\Test_coverage_LLM\llm_for_test\codes\implements_test_cases\test_my_function.py'.
 Hint: make sure your test modules/packages have valid Python names.
 Traceback:
 C:\Users\Dell\AppData\Local\Programs\Python\Python310\lib\importlib\__init__.py:126: in import_module
