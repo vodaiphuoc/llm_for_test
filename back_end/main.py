@@ -35,20 +35,13 @@ app.add_middleware(CORSMiddleware,
                    allow_methods=["*"],
                    allow_headers=["*"]
                    )
-app.mount(path = '/statics', 
-          app = StaticFiles(directory='./statics', html = False), 
-          name='statics')
+# app.mount(path = '/statics', 
+#           app = StaticFiles(directory='./statics', html = False), 
+#           name='statics')
 
 # for testing on web browser only
-templates = Jinja2Templates(directory='./templates')
-@app.get("/", response_class=HTMLResponse)
-async def index_router(request: Request):
-	return templates.TemplateResponse(
-		request = request,
-		name = "index.html"
-		)
-
-# @app.get("/open", response_class=HTMLResponse)
+# templates = Jinja2Templates(directory='./templates')
+# @app.get("/", response_class=HTMLResponse)
 # async def index_router(request: Request):
 # 	return templates.TemplateResponse(
 # 		request = request,
@@ -70,17 +63,21 @@ def flatten_tree(tree_dict: dict, parent:str = ''):
 
 @app.post("/upload_files", response_class=JSONResponse)
 async def upload_files_router(request: Request):
-    dir_tree = await request.json()
-    # dir_tree = dir_tree['dir']
-    # flatten tree
-    print('dir tree: ',dir_tree)
-    list_files = flatten_tree(dir_tree,'')
-    print(list_files)
-    list_data = File_List(list_file = [Script_File(file_path = dir) for dir in list_files])
-    # insert to DB
-    request.app.db.insert_files(list_data)
-    # return oke
-    return JSONResponse({'status':''})
+    try:
+        reponse_dict = await request.json()
+        dir_tree = reponse_dict['dict_tree']
+        path2currFolder = reponse_dict['path2currDir']
+        
+        # flatten tree
+        list_files = flatten_tree(dir_tree,'')
+        
+        list_data = File_List(list_file = [Script_File(file_path = path2currFolder+dir) for dir in list_files])
+        # insert to DB
+        request.app.db.insert_files(list_data)
+
+        return JSONResponse(status_code=200)
+    except Exception as e:
+        return JSONResponse(status_code=500)
 
 async def main_run():
     config = uvicorn.Config("main:app", 
