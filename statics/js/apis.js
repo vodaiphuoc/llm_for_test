@@ -12,6 +12,7 @@ function index () {
         if (response.ok) {
             response.text()
             .then((data)=>{
+                
                 const data_dict = JSON.parse(data);
                 $('.test_index_api').text(data_dict['status']);
             })

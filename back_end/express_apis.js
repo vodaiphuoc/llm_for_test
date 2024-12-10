@@ -91,15 +91,15 @@ function start_express () {
     const { dialog } = require('electron');
     var express = require('express');
     var exp_app = express();
-    var cors = require('cors');
-    exp_app.use('/statics',express.static('statics'));
-    exp_app.use('/templates',express.static('templates'));
+    // var cors = require('cors');
+    // exp_app.use('/statics',express.static('statics'));
+    // exp_app.use('/templates',express.static('templates'));
 
-    let corsOptions = {
-        origin : ['http://localhost:5000'],
-    };
+    // let corsOptions = {
+    //     origin : ['http://localhost:5000'],
+    // };
 
-    exp_app.use(cors(corsOptions));
+    // exp_app.use(cors(corsOptions));
 
     // only user this route for testing on Chrome
     // exp_app.get('/', function (req, res) {

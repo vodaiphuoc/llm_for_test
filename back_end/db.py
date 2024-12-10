@@ -25,7 +25,7 @@ class DB_handler(object):
                     INSERT INTO user_files (FileUrl, FileContent) VALUES (?,?);
                 """
                 self.connection.executemany(prompt, [
-                                            (ele.file_path, ele.file_content) 
+                                            (ele.save_file_path, ele.file_content) 
                                             for ele in files.list_file
                                         ])
             
@@ -41,7 +41,7 @@ class DB_handler(object):
                              )->Union[str, Display_Content]:
         try:
             with self.connection:
-                records = self.connection.execute(f"""SELECT fileContent FROM user_files WHERE fileUrl = "{url}";""").fetchall()
+                records = self.connection.execute(f"""SELECT fileContent FROM user_files WHERE fileUrl LIKE '%{url}';""").fetchall()
         except Exception as error:
             print(f"Cannot peform select file {url} error: ", error)
 

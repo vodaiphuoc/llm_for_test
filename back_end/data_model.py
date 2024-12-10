@@ -25,6 +25,11 @@ class Script_File:
 
     @computed_field
     @property
+    def save_file_path(self)->str:
+        return re.sub(r'[\\,/]','PATHSPLIT', self.file_path)
+
+    @computed_field
+    @property
     def file_content(self)->str:
         with open(self.file_path, 'r') as f:
             return f.read()

@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import asyncio
 import uvicorn
-
+import os
 
 from data_model import Script_File, File_List
 from db import DB_handler
@@ -56,13 +56,14 @@ def flatten_tree(tree_dict: dict, parent:str = ''):
             dir_list.extend(result_list)
         else:
             if parent == '':
-                dir_list.append(k)
+                dir_list.append(v)
             else:
-                dir_list.append(parent+'/'+k)
+                dir_list.append(parent+'/'+v)
     return dir_list
 
 @app.post("/upload_files", response_class=JSONResponse)
 async def upload_files_router(request: Request):
+    """Receive post request from expressjs"""
     try:
         reponse_dict = await request.json()
         dir_tree = reponse_dict['dict_tree']
@@ -75,9 +76,19 @@ async def upload_files_router(request: Request):
         # insert to DB
         request.app.db.insert_files(list_data)
 
-        return JSONResponse(status_code=200)
+        return JSONResponse(status_code=200,content='')
     except Exception as e:
-        return JSONResponse(status_code=500)
+        print(e)
+        return JSONResponse(status_code=500,content='')
+
+
+@app.get("/load_py/", response_class=JSONResponse)
+async def get_file_content(file_name:str, request: Request):
+    """Receive get request from front-end"""
+    html_content = request.app.db.get_content_from_url(url = file_name, 
+                                                       purpose= 'display').display_content
+    return JSONResponse(content={'html_content': html_content})
+
 
 async def main_run():
     config = uvicorn.Config("main:app", 
