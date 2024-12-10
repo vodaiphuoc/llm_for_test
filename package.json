@@ -10,7 +10,10 @@
   "author": "vodaiphuoc",
   "license": "ISC",
   "devDependencies": {
+    "cors": "^2.8.5",
     "electron": "^33.2.1",
+    "express": "^4.21.2",
+    "fs-promise": "^2.0.3",
     "python-shell": "^5.0.0"
   }
 }

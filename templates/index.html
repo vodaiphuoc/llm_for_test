@@ -33,19 +33,22 @@
                     <div class="row justify-content-center">Folder Tree</div>
                     <div class="row folder-browser-buttons">
                         <div class="col">
-                            <label for="folder-browser" class="open-folder">Open Folder
-                                <input type="file" 
+                            <label class="open-folder">Open Folder
+                                <button class="form-control" id="open-folder-button">
+                                open
+                                </button>
+                                <!-- <input type="file"
                                 id="folder-browser"
-                                class="form-control visually-hidden" webkitdirectory directory multiple />
+                                class="form-control visually-hidden" webkitdirectory directory multiple /> -->
                             </label>  
                         </div>
                         <div class="col">
                             <label class="close-folder">Close Folder
-                                <button class="form-control visually-hidden" 
+                                <button class="form-control"
                                         onclick="close_folder_tree();">
                                 </button>
                             </label>
-                        </div>    
+                        </div>
                     </div>
                     
                 </div>
