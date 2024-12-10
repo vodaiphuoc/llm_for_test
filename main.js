@@ -33,7 +33,7 @@ function start_py_server () {
 app.whenReady().then(() => {
     createWindow();
     start_express();
-    // start_py_server();
+    start_py_server();
 });
 
 // close app
