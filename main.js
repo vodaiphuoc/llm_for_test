@@ -13,7 +13,7 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js')
     }
     });
-    win.loadFile('./templates/test.html');
+    win.loadFile('./templates/index.html');
     win.maximize();
     win.webContents.openDevTools();
 }

@@ -1,5 +1,6 @@
 function set_current_directory (path2currentDir,currentFolder) {
-    $('.currentDir').val(path2currentDir + '\\'+ currentFolder);
+    const update_dir = `${path2currentDir}${currentFolder}`;
+    $('#currentDir').text(update_dir);
 }
 
 function make_tree_content(key, value, parent_key) {

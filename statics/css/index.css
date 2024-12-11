@@ -37,7 +37,7 @@ html {
     content: "\25B6";
     color: black;
     display: inline-block;
-    margin-right: 4px;
+    margin-right: 2px;
 }
   
 .folder-in-tree-down::before {
@@ -56,11 +56,11 @@ html {
 
 li {
     font-size: small;
-    padding: 2%;
+    padding-right: 0px;
 }
 
 ul {
-    list-style-position: inherit;
-    padding: 5%;
-    margin: 0%;
+    list-style-position: outside;
+    padding-right: 0px;
+    margin: 0px;
 }

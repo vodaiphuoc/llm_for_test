@@ -5,7 +5,7 @@ import re
 
 DISPLAY_PATTERNS = [
     ('\n','<br>'),
-    ('\t','&nbsp;&nbsp;&nbsp;&nbsp;')
+    ('\t|    ','&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;')
 ]
 
 @dataclass
