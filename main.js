@@ -13,9 +13,9 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js')
     }
     });
-    win.loadFile('./templates/index.html');
+    win.loadFile('./templates/test.html');
     win.maximize();
-    // win.webContents.openDevTools();
+    win.webContents.openDevTools();
 }
 
 function start_py_server () {

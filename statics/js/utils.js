@@ -1,3 +1,7 @@
+function set_current_directory (path2currentDir,currentFolder) {
+    $('.currentDir').val(path2currentDir + '\\'+ currentFolder);
+}
+
 function make_tree_content(key, value, parent_key) {
     /**
      * Recursive function creates only string for folder case or file .py case

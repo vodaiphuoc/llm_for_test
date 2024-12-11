@@ -113,13 +113,13 @@ function start_express () {
         dialog.showOpenDialog({ properties: ['openDirectory']})
         .then((result)=>{
             const file_list = [];
-            
+            let currentFolder = null;
             let path2currentDir = null;
             if (result['canceled'] === false) {
                 const currentDir = result['filePaths'][0];
                 
                 const splited_str = currentDir.split('\\');
-                const currentFolder = splited_str[splited_str.length-1];
+                currentFolder= splited_str[splited_str.length-1];
                 
                 path2currentDir = result['filePaths'][0].replace(currentFolder,'');
 
@@ -128,9 +128,9 @@ function start_express () {
                 });
                 file_list.push(...result_file_list);
             }
-            return [file_list, path2currentDir]
+            return [file_list, path2currentDir, currentFolder]
         })
-        .then(([send_file_list, path2currentDir])=>{
+        .then(([send_file_list, path2currentDir, currentFolder])=>{
 
             // convert list dir of files to dictionary
             const folder_tree = get_folder_tree(send_file_list);
@@ -140,7 +140,11 @@ function start_express () {
             send_directories(folder_tree, path2currentDir);
 
             // send dict tree back to front-end
-            res.json(folder_tree);
+            res.json({
+                'folder_tree':folder_tree,
+                'path2currentDir':path2currentDir,
+                'currentFolder': currentFolder
+            });
         });
     });
 

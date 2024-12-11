@@ -1,6 +1,6 @@
 myenv/
 node_modules/
 */__pycache__/
-test*.py
+
+test*.*
 codes/
-db/

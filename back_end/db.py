@@ -15,10 +15,13 @@ class DB_handler(object):
     def insert_files(self, files: File_List):
         try:
             with self.connection:
-                prompt = """
+                del_prompt = """DROP TABLE IF EXISTS user_files;"""
+                self.connection.execute(del_prompt)
+
+                create_prompt = """
                 CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, fileUrl TEXT, fileContent TEXT);
                 """
-                self.connection.execute(prompt)
+                self.connection.execute(create_prompt)
             
             with self.connection:
                 prompt = """

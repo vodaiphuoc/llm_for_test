@@ -13,7 +13,7 @@ $('body').ready(function () {
             headers: myHeaders,
         })
         .then(respone=> respone.json())
-        .then(folderTree => post_processing(folderTree))
+        .then(respone_dict => post_processing(respone_dict))
         .catch((error)=>{
             console.log(error);
         });
@@ -21,13 +21,19 @@ $('body').ready(function () {
     });
 });
 
-function post_processing(folderTree) {
+function post_processing(respone_dict) {
     // step 1
     let tree_wrapper = 
         `<ul id="root-tree">
             REPLACE
         </ul>
         `;
+    
+    const path2currentDir = respone_dict['path2currentDir'];
+    const currentFolder = respone_dict['currentFolder'];
+    set_current_directory(path2currentDir, currentFolder);
+
+    const folderTree = respone_dict['folder_tree'];
     let tree_string = ``;
     for (var key in folderTree){
         // concat to initial string
@@ -62,7 +68,7 @@ function py_file_trigger (file_name) {
         if (response.ok) {
             response.json()
             .then((data)=>{
-                $(".test_index_api").html(`<div>${data['html_content']}</div>`);
+                $(".show_py_content").html(`<div>${data['html_content']}</div>`);
             });
         }
         
@@ -86,9 +92,12 @@ $('body').ready(function () {
      * Clear text in `#folder-tree`
      */
     $(document).on('click', '#close-folder-button', function(event){
+        
         let folder_tree = $('#folder-tree');
-        console.log(folder_tree);
         folder_tree.html("<div></div>");
+
+        let current_open_py = $('.show_py_content');
+        current_open_py.html("<div></div>");
     });
     
 });
