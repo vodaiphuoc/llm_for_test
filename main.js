@@ -15,7 +15,7 @@ const createWindow = () => {
     });
     win.loadFile('./templates/index.html');
     win.maximize();
-    win.webContents.openDevTools();
+    // win.webContents.openDevTools();
 }
 
 function start_py_server () {

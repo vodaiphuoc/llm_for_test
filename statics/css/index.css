@@ -59,8 +59,35 @@ li {
     padding-right: 0px;
 }
 
+.py_file:hover {
+    background-color: #bfbebedd;
+    cursor: pointer;
+}
+
 ul {
     list-style-position: outside;
     padding-right: 0px;
     margin: 0px;
+}
+
+/* for show codes */
+.code-line, .code-content {
+    margin: 0%;
+}
+
+.code-content, .line-number {
+    display:inline-flex;
+}
+
+.code-content {
+    border-left: 2px solid red;
+    height: 100%;
+    display:inline-flex;
+    margin: 0%;
+    padding: 0%;
+}
+
+.line-number {
+    width: 2vw;
+    background-color: #a6a3a3dd;
 }
