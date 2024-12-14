@@ -7,8 +7,8 @@ import re
 DISPLAY_PATTERNS = namedtuple("DISPLAY_PATTERNS", ['old', 'new'])
 
 tab_pattern = DISPLAY_PATTERNS('^\s+', 
-                    '<p class="code-content">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>')
-code_pattern = DISPLAY_PATTERNS('','<p class="code-content">{code_content}</p>')
+    '<p class="code-content" style="border-left: 2px solid red;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>')
+code_pattern = DISPLAY_PATTERNS('','<p class="code-content" style="border-left: 2px solid red;">{code_content}</p>')
 
 line_number_pattern = DISPLAY_PATTERNS('',
                     '<div class="line-number">{line_number}</div>')
