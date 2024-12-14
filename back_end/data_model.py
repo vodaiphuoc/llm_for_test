@@ -4,17 +4,26 @@ from typing import List
 from collections import namedtuple
 import re
 
-DISPLAY_PATTERNS = namedtuple("DISPLAY_PATTERNS", ['old', 'new'])
 
-tab_pattern = DISPLAY_PATTERNS('^\s+', 
-    '<p class="code-content" style="border-left: 2px solid red;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>')
-code_pattern = DISPLAY_PATTERNS('','<p class="code-content" style="border-left: 2px solid red;">{code_content}</p>')
+DISPLAY_PATTERNS = namedtuple("DISPLAY_PATTERNS", 
+        ['detect_pattern', 'line_tab','non_line_tab','row_pattern','final_pattern'])
 
-line_number_pattern = DISPLAY_PATTERNS('',
-                    '<div class="line-number">{line_number}</div>')
+total_pattern = DISPLAY_PATTERNS('^\s+', 
+    '<div class="tab-spacing">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>',
+    '<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>',
+"""
+<tr>
+<td><p class="line-number">{line_number}</p></td>
+<td>
+    {tab_content}
+    <pre><code class="language-python">{code_content}</code>
+    </pre>
+</td>
+</tr>
+""",
+'<div><table>{rows}</table></div><script>hljs.highlightAll();</script>'
+)
 
-line_pattern = DISPLAY_PATTERNS('',
-                    '<div class="code-line">{line_number}{tab_content}{code_content}</div>')
 
 @dataclass
 class Display_Content:
@@ -23,23 +32,36 @@ class Display_Content:
     @computed_field
     @property
     def display_content(self)->str:
-        show_lines = ''
+
+        rows_content = ""
         for ith, line in enumerate(self.file_content.split('\n')):
-            code_content = "".join(re.split(tab_pattern.old, line))
-            code_content = code_pattern.new.format(code_content = code_content)
+            code_content = "".join(re.split(total_pattern.detect_pattern, line))
 
-            tab_match = re.match(tab_pattern.old, line)
-            tab_content = "" if tab_match is None else "".join([tab_pattern.new]*(tab_match.span()[-1]//4))
+            tab_match = re.match(total_pattern.detect_pattern, line)
+            tab_DOM_list = []
             
-            line_number = line_number_pattern.new.format(line_number = ith+1)
+            tab_content = ""
+            if tab_match is not None:
+                tab_DOM_list.append(total_pattern.non_line_tab)
+                
+                number_line_tabs = tab_match.span()[-1]//4 - 1
 
-            show_lines += line_pattern.new.format(
-                line_number = line_number,
-                tab_content = tab_content, 
-                code_content = code_content
-                )
-            
-        return show_lines
+                if number_line_tabs >0:
+                    tab_DOM_list += [total_pattern.line_tab for _ in range(number_line_tabs)]
+                    tab_content =  "".join(tab_DOM_list)
+
+                else:
+                    tab_content = ""
+                    code_content = line
+
+            else:
+                tab_content = "" 
+
+            rows_content += total_pattern.row_pattern.format(line_number = ith+1, 
+                                                           tab_content = tab_content,
+                                                           code_content = code_content)
+        return total_pattern.final_pattern.format(rows = rows_content)    
+
 
 @dataclass
 class Script_File:

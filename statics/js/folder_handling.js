@@ -3,7 +3,6 @@
  */
 $('body').ready(function () {
     $(document).on('click', '#open-folder-button', function(event){
-        console.log('run............');
         let myHeaders = new Headers({
             "Content-Type": "application/json",
             "referrer": "http://127.0.0.1:5000",
@@ -54,7 +53,6 @@ function post_processing(respone_dict) {
 }
 
 function py_file_trigger (file_name) {
-    console.log('run index in apis.js function: ', file_name);
     let myHeaders = new Headers({
         "Content-Type": "application/json",
     });
@@ -68,7 +66,7 @@ function py_file_trigger (file_name) {
         if (response.ok) {
             response.json()
             .then((data)=>{
-                $(".show_py_content").html(`<div>${data['html_content']}</div>`);
+                $(".show_py_content").html(`${data['html_content']}`);
             });
         }
         
@@ -78,7 +76,6 @@ function py_file_trigger (file_name) {
 function add_actions_on_file_py () {
     var py_files = document.getElementsByClassName("py_file");
     var i;
-    console.log('py file ready', py_files.length);
     for (i = 0; i < py_files.length; i++) {
         py_files[i].addEventListener("click", function(e) {
             e.preventDefault();
