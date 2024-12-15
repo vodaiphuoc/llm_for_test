@@ -3,6 +3,18 @@
  */
 $('body').ready(function () {
     $(document).on('click', '#open-folder-button', function(event){
+        /**
+         * Clear text in `#folder-tree` and `.show_py_content` first
+         */
+        let folder_tree = $('#folder-tree');
+        folder_tree.html("<div></div>");
+
+        let current_open_py = $('.show_py_content');
+        current_open_py.html("<div></div>");
+
+        /**
+         * Get data data from express js server
+         */
         let myHeaders = new Headers({
             "Content-Type": "application/json",
             "referrer": "http://127.0.0.1:5000",
@@ -68,6 +80,11 @@ function py_file_trigger (file_name) {
             .then((data)=>{
                 $(".show_py_content").html(`${data['html_content']}`);
             });
+        } else {
+            response.json()
+            .then((data)=>{
+                $(".show_py_content").html(`${data['html_content']}`);
+            });
         }
         
     });
@@ -83,18 +100,3 @@ function add_actions_on_file_py () {
         });
     }
 }
-
-$('body').ready(function () {
-    /**
-     * Clear text in `#folder-tree`
-     */
-    $(document).on('click', '#close-folder-button', function(event){
-        
-        let folder_tree = $('#folder-tree');
-        folder_tree.html("<div></div>");
-
-        let current_open_py = $('.show_py_content');
-        current_open_py.html("<div></div>");
-    });
-    
-});

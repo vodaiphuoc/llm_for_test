@@ -77,6 +77,7 @@ async def upload_files_router(request: Request):
         request.app.db.insert_files(list_data)
 
         return JSONResponse(status_code=200,content='')
+    
     except Exception as e:
         print(e)
         return JSONResponse(status_code=500,content='')
@@ -85,10 +86,13 @@ async def upload_files_router(request: Request):
 @app.get("/load_py/", response_class=JSONResponse)
 async def get_file_content(file_name:str, request: Request):
     """Receive get request from front-end"""
-    html_content = request.app.db.get_content_from_url(url = file_name, 
-                                                       purpose= 'display').display_content
-    return JSONResponse(content={'html_content': html_content})
-
+    try:
+        html_content = request.app.db.get_content_from_url(url = file_name, 
+                                                        content_type= 'RenderContent')
+        return JSONResponse(content={'html_content': html_content})
+    except Exception as e:
+        print(e)
+        return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
 
 async def main_run():
     config = uvicorn.Config("main:app", 
