@@ -33,12 +33,22 @@ function make_tree_content(key, value, parent_key) {
 
     } else {
         // file .py case
-        content_element = `<li class= "py_file" id=${parent_key}>FILE_NAME</li>`;
-        content_element = content_element.replace('FILE_NAME', key);   
+        content_element =  `<div>
+                                <div style="display:inline-grid;">
+                                    <li class= "py_file" id=${parent_key} style="display: inline-flex;">
+                                    FILE_NAME
+                                    </li>
+                                </div>
+                                <div style="display:inline-grid;float: right;">
+                                    <input class="form-check-input" type="checkbox" value="" id=${parent_key}>
+                                </div>
+                            </div>`;
+        content_element = content_element.replace('FILE_NAME', key);
     }
     
     return content_element;
 }
+
 
 function add_actions_on_tree_element () {
     /**

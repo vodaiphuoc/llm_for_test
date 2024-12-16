@@ -16,6 +16,8 @@ async def lifespan(app: FastAPI):
     # init engine here
     app.db = DB_handler('db/main.db')
     yield
+
+    app.db.close()
     app.db = None
 
 app = FastAPI(lifespan= lifespan)
@@ -65,9 +67,9 @@ def flatten_tree(tree_dict: dict, parent:str = ''):
 async def upload_files_router(request: Request):
     """Receive post request from expressjs"""
     try:
-        reponse_dict = await request.json()
-        dir_tree = reponse_dict['dict_tree']
-        path2currFolder = reponse_dict['path2currDir']
+        request_dict = await request.json()
+        dir_tree = request_dict['dict_tree']
+        path2currFolder = request_dict['path2currDir']
         
         # flatten tree
         list_files = flatten_tree(dir_tree,'')
@@ -93,6 +95,38 @@ async def get_file_content(file_name:str, request: Request):
     except Exception as e:
         print(e)
         return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
+
+
+@app.post("/file_to_test", response_class=JSONResponse)
+async def generate_test_cases(request: Request):
+    """Receive get request from front-end"""
+    try:
+        request_dict = await request.json()
+        request_files = request_dict['file_list']
+
+        # get raw content of all request files
+        file_contents = [request.app.db.get_content_from_url(url = file_name, 
+                                                        content_type= 'RawContent')
+                        for file_name in request_files
+        ]
+        # agent tester inference and
+        # output content (code) of test cases
+
+
+        # save content of test cases to DB (`test_cases` table)
+
+
+        # load report file of pytest, attach to reponse
+
+
+        
+        return JSONResponse(content={'html_content': ''})
+    except Exception as e:
+        print(e)
+        return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
+
+
+
 
 async def main_run():
     config = uvicorn.Config("main:app", 

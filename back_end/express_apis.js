@@ -127,8 +127,12 @@ function start_express () {
                     return filePath
                 });
                 file_list.push(...result_file_list);
+
+                return [file_list, path2currentDir, currentFolder]
+            } else {
+                return [file_list, "", ""]
             }
-            return [file_list, path2currentDir, currentFolder]
+            
         })
         .then(([send_file_list, path2currentDir, currentFolder])=>{
 

@@ -16,17 +16,14 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 
     <!-- highlight js -->
-    <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/default.min.css">
-    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script> -->
-
+    <link rel="stylesheet" href="../statics/highlight/styles/default.min.css">
+    <script src="../statics/highlight/highlight.min.js"></script>
 
     <!-- custom -->
     <script src="../statics/js/folder_handling.js"></script>
     <script src="../statics/js/utils.js"></script>
-
-    <!-- highlight js -->
-    <link rel="stylesheet" href="../statics/highlight/styles/default.min.css">
-    <script src="../statics/highlight/highlight.min.js"></script>
+    <script src="../statics/js/generate.js"></script>
+    
 
 </head>
 <body>
@@ -47,23 +44,31 @@
                 <div class="card">
                     <div class="card-header">
                         <div class="row">
-                            <div class="col-sm-6 p-0" style="font-size: smaller;">
+                            <div class="col-sm-4 p-0" style="font-size: smaller;">
                                 Folder Tree
                             </div>
-                            <div class="col-sm-6 p-0">
-                                <button type="button" 
+                            <div class="col-sm-4 p-0" style="display: inline-flex;">
+                                
+                                <button type="button"
                                         class="btn btn-outline-primary btn-sm" 
                                         id="open-folder-button">
-                                    <p class="fs-7", style="margin-bottom: 0%;font-size: smaller;">open folder</p>
+                                    <p class="fs-7" id="button-text" style="margin-bottom: 0%;font-size: smaller;">
+                                        Open
+                                    </p>
                                 </button>
+                                <span id="loading-status-1"></span>
                             </div>
-                            <!-- <div class="col-sm-4 p-0" style="font-size: smaller;">
-                                <button type="button" 
-                                        class="btn btn-outline-primary btn-sm" 
-                                        id="close-folder-button">
-                                    <p class="fs-7" style="margin-bottom: 0%;">close folder</p>
+                            <div class="col-sm-4 p-0" style="display: inline-flex;">
+                                
+                                <button type="button"
+                                        class="btn btn-outline-primary btn-sm"
+                                        id="generate-button">
+                                    <p class="fs-7" id="button-text" style="margin-bottom: 0%;font-size: smaller;">
+                                        Generate
+                                    </p>
                                 </button>
-                            </div> -->
+                                <span id="loading-status-2"></span>
+                            </div>
                         </div>
                         
                     </div>

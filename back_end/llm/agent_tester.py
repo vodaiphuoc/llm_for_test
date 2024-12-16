@@ -26,7 +26,7 @@ class Agent(object):
             f.write(content)
             f.close()
 
-    def run(self, 
+    def run(self,
             logs_file = 'reports/test.xml',
             input_dir:str = 'codes/implements', 
             test_cases_dir:str = 'codes/implements_test_cases'
