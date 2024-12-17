@@ -58,9 +58,10 @@ class DB_handler(object):
     """
     Database for storage files content
     """
-    def __init__(self, db_url: str) -> None:
+    def __init__(self, db_url: Literal['db/implement.db', 'db/test_cases.db']) -> None:
         try:
             self.connection = sqlite3.connect(db_url)
+            self.db_type = "implement" if db_url == 'db/implement.db' else "test_cases"
         except sqlite3.Error as error:
             print(f"Cannot connect to {db_url} db, ", error)
 
@@ -78,21 +79,33 @@ class DB_handler(object):
 
                 create_prompt = """
                 CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, FileUrl TEXT, RawContent TEXT, RenderContent TEXT);
+                """ if self.db_type == "implement" else \
                 """
+                CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, FileUrl TEXT, impl_RawContent TEXT, test_RawContent TEXT , RenderContent TEXT);
+                """
+
                 self.connection.execute(create_prompt)
             
             with self.connection:
                 prompt = """
                     INSERT INTO user_files (FileUrl, RawContent, RenderContent) VALUES (?,?,?);
+                """ if self.db_type == "implement" else \
                 """
+                    INSERT INTO user_files (FileUrl, impl_RawContent) VALUES (?,?);
+                """
+
                 self.connection.executemany(prompt, [
                                             (ele.save_file_path, 
-                                             ele.file_content, 
+                                             ele.file_content,
                                              render_content(ele.file_content)) 
+                                             if self.db_type == "implement" else \
+                                             (ele.save_file_path, 
+                                             ele.file_content) 
                                             for ele in files.list_file
-                                        ])
+                                            ]
+                                        )
         except Exception as error:
-            print(f"Cannot peform insert many files, ", error)
+            print(f"Cannot peform insert many files, db type: {self.db_type}, ", error)
 
     def close(self):
         self.connection.close()

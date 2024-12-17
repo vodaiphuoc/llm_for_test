@@ -40,7 +40,9 @@ function make_tree_content(key, value, parent_key) {
                                     </li>
                                 </div>
                                 <div style="display:inline-grid;float: right;">
-                                    <input class="form-check-input" type="checkbox" value="" id=${parent_key}>
+                                    <input class="form-check-input" type="checkbox" value="" 
+                                    data-toggle="tooltip" title="mark to get test cases"
+                                    id=${parent_key}>
                                 </div>
                             </div>`;
         content_element = content_element.replace('FILE_NAME', key);

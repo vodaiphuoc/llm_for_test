@@ -21,9 +21,9 @@
 
     <!-- custom -->
     <script src="../statics/js/folder_handling.js"></script>
-    <script src="../statics/js/utils.js"></script>
+    <script src="../statics/js/folder_handling_utils.js"></script>
     <script src="../statics/js/generate.js"></script>
-    
+    <script src="../statics/js/status_panel.js"></script>
 
 </head>
 <body>
@@ -50,7 +50,8 @@
                             <div class="col-sm-4 p-0" style="display: inline-flex;">
                                 
                                 <button type="button"
-                                        class="btn btn-outline-primary btn-sm" 
+                                        class="btn btn-outline-primary btn-sm"
+                                        data-toggle="tooltip" title="Open any local folder"
                                         id="open-folder-button">
                                     <p class="fs-7" id="button-text" style="margin-bottom: 0%;font-size: smaller;">
                                         Open
@@ -62,6 +63,7 @@
                                 
                                 <button type="button"
                                         class="btn btn-outline-primary btn-sm"
+                                        data-toggle="tooltip" title="Generate test cases"
                                         id="generate-button">
                                     <p class="fs-7" id="button-text" style="margin-bottom: 0%;font-size: smaller;">
                                         Generate
@@ -115,11 +117,34 @@
             <div class="col-sm-4">
                 <div class="card">
                     <div class="card-body">
-                        Code Testfkaoiwjemoaiwjmvol
+                        <div class="show_test_cases" style="font-size: smaller;"><div></div></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Modal -->
+    <div class="modal fade" 
+        id="empty-file-list-model" 
+        tabindex="-1" 
+        data-bs-backdrop="true"
+        aria-labelledby="exampleModalLabel" 
+        aria-hidden="true">
+        <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+            <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+            Select at least 1 file to generate test case!
+            </div>
+        </div>
+        </div>
+    </div>
+
+
+
 </body>
 </html>

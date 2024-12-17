@@ -65,6 +65,7 @@ function post_processing(respone_dict) {
 }
 
 function py_file_trigger (file_name) {
+    
     let myHeaders = new Headers({
         "Content-Type": "application/json",
     });

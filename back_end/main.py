@@ -7,18 +7,24 @@ from fastapi.staticfiles import StaticFiles
 import asyncio
 import uvicorn
 import os
+import time
 
 from data_model import Script_File, File_List
 from db import DB_handler
+from typing import List
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # init engine here
-    app.db = DB_handler('db/main.db')
+    app.implement_db = DB_handler('db/implement.db')
+    app.test_cases_db = DB_handler('db/test_cases.db')
     yield
 
-    app.db.close()
-    app.db = None
+    app.implement_db.close()
+    app.implement_db = None
+
+    app.test_cases_db.close()
+    app.test_cases_db = None
 
 app = FastAPI(lifespan= lifespan)
 
@@ -76,7 +82,8 @@ async def upload_files_router(request: Request):
         
         list_data = File_List(list_file = [Script_File(file_path = path2currFolder+dir) for dir in list_files])
         # insert to DB
-        request.app.db.insert_files(list_data)
+        request.app.implement_db.insert_files(list_data)
+        request.app.test_cases_db.insert_files(list_data)
 
         return JSONResponse(status_code=200,content='')
     
@@ -89,7 +96,7 @@ async def upload_files_router(request: Request):
 async def get_file_content(file_name:str, request: Request):
     """Receive get request from front-end"""
     try:
-        html_content = request.app.db.get_content_from_url(url = file_name, 
+        html_content = request.app.implement_db.get_content_from_url(url = file_name, 
                                                         content_type= 'RenderContent')
         return JSONResponse(content={'html_content': html_content})
     except Exception as e:
@@ -97,34 +104,47 @@ async def get_file_content(file_name:str, request: Request):
         return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
 
 
-@app.post("/file_to_test", response_class=JSONResponse)
-async def generate_test_cases(request: Request):
+# def _make_test_cases(request: Request, file_list: List[str]):
+#     # get raw content of all request files
+#     file_contents = [request.app.db.get_content_from_url(url = file_name, 
+#                                                     content_type='RawContent')
+#                     for file_name in file_list
+#     ]
+
+    # agent tester inference and
+    # output content (code) of test cases
+
+    
+
+    # save content of test cases to DB (`test_cases` table)
+
+
+
+# def _run_test_prepare_report():
+    # run pytest
+
+
+    # load report file of pytest, attach to reponse
+
+@app.get("/generate_test_cases/{task_id}")
+@app.post("/generate_test_cases/{task_id}")
+async def generate_test_cases(task_id: str,request: Request):
     """Receive get request from front-end"""
     try:
-        request_dict = await request.json()
-        request_files = request_dict['file_list']
 
-        # get raw content of all request files
-        file_contents = [request.app.db.get_content_from_url(url = file_name, 
-                                                        content_type= 'RawContent')
-                        for file_name in request_files
-        ]
-        # agent tester inference and
-        # output content (code) of test cases
-
-
-        # save content of test cases to DB (`test_cases` table)
-
-
-        # load report file of pytest, attach to reponse
-
-
-        
-        return JSONResponse(content={'html_content': ''})
+        if task_id == 'task-1':
+            request_dict = await request.json()
+            request_files = request_dict['file_list']
+            # _make_test_cases(request, request_files)
+            await asyncio.sleep(50)
+            return JSONResponse(status_code=200,content= {'data': [1,2,3,4]})
+        else:
+            await asyncio.sleep(30)
+            return JSONResponse(status_code=200,content= {'data': [5,6,7,8]})
+    
     except Exception as e:
         print(e)
         return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
-
 
 
 
