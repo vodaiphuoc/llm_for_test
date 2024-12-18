@@ -24,12 +24,14 @@ $('body').ready(()=>{
                 {
                     'name':'Task 1',
                     'method': 'POST',
-                    'request_data': {'file_list': selected_py_files}
+                    'request_data': {'file_list': selected_py_files},
+                    'selector': 'task-1'
                 },
                 {
                     'name':'Task 2',
                     'method': 'GET',
-                    'request_data': null
+                    'request_data': null,
+                    'selector': 'task-2'
                 }
             ];
             init_status_panel("show_test_cases",".",task_params);
@@ -51,6 +53,7 @@ $('body').ready(()=>{
 
 function update_result (data) {
     $('body').ready(()=>{
+        console.log(data);
         if ($('.show_test_cases .status').length === 0) {
             $('.show_test_cases').append(`<div>My new data: ${data}</div>`);
         }
@@ -106,7 +109,7 @@ function setButtonNormalState () {
 function run_tasks (task_params) {
     let task_objects = [];
     task_params.forEach((task_param, index)=>{
-        task_objects[index] = new Generate(task_param,`task-${index+1}`);
+        task_objects[index] = new Generate(task_params[index]);
     });
 
     let run_and_get = async (task_objects) => {
@@ -140,14 +143,13 @@ class Generate {
      * 1) `string` name - Name of task for display on UI
      * 2) `string` method - Method for sending request
      * 3) `Object` {`string`: `Array[str]`}|`null`} request_data - Request data
-     * @param {str} id_selector: id selector for li tag selection
      */
-    constructor(task_param, id_selector) {
+    constructor(task_param) {
         this.task_name = task_param['name'];
         this.request_method = task_param['method'];
         this.request_data = task_param['request_data'];
-
-        this.id_selector = id_selector;
+        this.id_selector = task_param['selector'];
+        
         this.is_created = true;
         this.is_execute = false;
         this.is_done = false;
@@ -183,7 +185,7 @@ class Generate {
      * @returns {Promise}
      */
     #create_task (task_endpoint, method, request_data) {
-        const tartget_url = `http://127.0.0.1:8000/generate_test_cases/${task_endpoint}`;
+        const tartget_url = `http://127.0.0.1:8000/generate_test_cases_${task_endpoint}`;
 
         const request_init = {};
         request_init['method'] = method;
@@ -194,6 +196,7 @@ class Generate {
         if (request_data !== null) {
             request_init['body'] = JSON.stringify(request_data);
         }
+        console.log(request_init);
         return fetch(tartget_url,request_init);
     }
     

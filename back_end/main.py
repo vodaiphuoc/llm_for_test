@@ -9,8 +9,11 @@ import uvicorn
 import os
 import time
 
+from loguru import logger
+
 from data_model import Script_File, File_List
 from db import DB_handler
+from llm.agent_tester import Agent
 from typing import List
 
 @asynccontextmanager
@@ -18,6 +21,8 @@ async def lifespan(app: FastAPI):
     # init engine here
     app.implement_db = DB_handler('db/implement.db')
     app.test_cases_db = DB_handler('db/test_cases.db')
+
+    app.model = Agent()
     yield
 
     app.implement_db.close()
@@ -25,6 +30,8 @@ async def lifespan(app: FastAPI):
 
     app.test_cases_db.close()
     app.test_cases_db = None
+
+    app.model = None
 
 app = FastAPI(lifespan= lifespan)
 
@@ -104,12 +111,11 @@ async def get_file_content(file_name:str, request: Request):
         return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
 
 
-# def _make_test_cases(request: Request, file_list: List[str]):
+# async def _make_test_cases(request: Request, file_list: List[str]):
 #     # get raw content of all request files
-#     file_contents = [request.app.db.get_content_from_url(url = file_name, 
-#                                                     content_type='RawContent')
-#                     for file_name in file_list
-#     ]
+    
+#     logger.info('in main: ',file_contents)
+#     return file_contents
 
     # agent tester inference and
     # output content (code) of test cases
@@ -126,32 +132,63 @@ async def get_file_content(file_name:str, request: Request):
 
     # load report file of pytest, attach to reponse
 
-@app.get("/generate_test_cases/{task_id}")
-@app.post("/generate_test_cases/{task_id}")
-async def generate_test_cases(task_id: str,request: Request):
+
+@app.post("/generate_test_cases_task-1", response_class=JSONResponse)
+async def generate_test_cases(request: Request):
     """Receive get request from front-end"""
     try:
+        request_dict = await request.json()
+        request_files = request_dict['file_list']
 
-        if task_id == 'task-1':
-            request_dict = await request.json()
-            request_files = request_dict['file_list']
-            # _make_test_cases(request, request_files)
-            await asyncio.sleep(50)
-            return JSONResponse(status_code=200,content= {'data': [1,2,3,4]})
-        else:
-            await asyncio.sleep(30)
-            return JSONResponse(status_code=200,content= {'data': [5,6,7,8]})
-    
+        file_contents = [
+            {
+                'file_path': file_name,
+                'file_content':request.app.test_cases_db.get_content_from_url(url = file_name,
+                                                        content_type='RawContent')
+            }
+            for file_name in request_files
+        ]
+        response_data = request.app.model.run(file_contents)
+        # await asyncio.sleep(10)
+        return JSONResponse(status_code=200,content= {'data': response_data})
+        
     except Exception as e:
         print(e)
         return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
 
 
 
+
+
+# @app.get("/generate_test_cases/{task_id}")
+# async def generate_test_cases(task_id: str,request: Request):
+#     """Receive get request from front-end"""
+#     try:
+#         if task_id == 'task-1':
+#             logger.info('in main: ',request)
+#             request_dict = request.json()
+#             logger.info('in main: ',request_dict)
+#             # request_files = request_dict['file_list']
+#             # logger.info('in main: ',request_files)
+
+
+#             # response_data = _make_test_cases(request, request_files)
+#             # await asyncio.sleep(10)
+#             return JSONResponse(status_code=200,content= {'data': [1,2,3,4]})
+#         else:
+#             # await asyncio.sleep(5)
+#             return JSONResponse(status_code=200,content= {'data': [5,6,7,8]})
+    
+#     except Exception as e:
+#         print(e)
+#         return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
+
+
+
 async def main_run():
     config = uvicorn.Config("main:app", 
     	port=8000, 
-    	log_level="info", 
+    	log_level="info",
     	reload=True
     	)
     server = uvicorn.Server(config)

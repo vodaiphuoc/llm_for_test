@@ -99,7 +99,7 @@ class DB_handler(object):
                                              ele.file_content,
                                              render_content(ele.file_content)) 
                                              if self.db_type == "implement" else \
-                                             (ele.save_file_path, 
+                                             (ele.save_file_path,
                                              ele.file_content) 
                                             for ele in files.list_file
                                             ]
@@ -116,7 +116,8 @@ class DB_handler(object):
                              )->str:
         try:
             with self.connection:
-                query_prompt = f"""SELECT {content_type} FROM user_files WHERE FileUrl LIKE '%{url}';"""
+                target_col = content_type if self.db_type == 'implement' else 'impl_RawContent'
+                query_prompt = f"""SELECT {target_col} FROM user_files WHERE FileUrl LIKE '%{url}';"""
                 records = self.connection.execute(query_prompt).fetchall()
                 return records[0][0]
         

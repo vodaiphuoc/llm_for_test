@@ -16,7 +16,7 @@ function init_status_panel (parent_selector_name, selector_type, task_params) {
     let status_panel = '<div class="status"><div style="text-align:center"><strong>Status</strong></div>';
 
     task_params.forEach((task_param, index)=>{
-        status_panel += `<ul class="list-group" id="task-1"><strong>${task_params[index]['name']}</strong></ul>`;
+        status_panel += `<ul class="list-group" id=${task_params[index]['selector']}><strong>${task_params[index]['name']}</strong></ul>`;
     });
 
     status_panel += '</div>';
