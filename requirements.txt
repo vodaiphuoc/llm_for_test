@@ -7,3 +7,4 @@ python-dotenv
 pytest
 loguru
 typing_extensions
+beautifulsoup4

@@ -5,5 +5,8 @@ node_modules/
 .env
 *test*.py
 codes/
-db/user_repo/*
+db/pytest_execute_env/*
+!db/pytest_execute_env/ReadMe.md
 db/*.py
+test_pytest/
+

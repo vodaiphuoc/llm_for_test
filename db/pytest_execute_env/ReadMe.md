@@ -1,0 +1,1 @@
+This internal folder is used to copy all contents in user folder, make temp venv, testcases only

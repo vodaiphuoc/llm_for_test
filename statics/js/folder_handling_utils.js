@@ -32,19 +32,31 @@ function make_tree_content(key, value, parent_key) {
         content_element = content_element.replace('REPLACE', tree_string);
 
     } else {
-        // file .py case
-        content_element =  `<div>
-                                <div style="display:inline-grid;">
-                                    <li class= "py_file" id=${parent_key} style="display: inline-flex;">
-                                    FILE_NAME
-                                    </li>
-                                </div>
-                                <div style="display:inline-grid;float: right;">
-                                    <input class="form-check-input" type="checkbox" value="" 
-                                    data-toggle="tooltip" title="mark to get test cases"
-                                    id=${parent_key}>
-                                </div>
-                            </div>`;
+        // file .py case or other .* file
+        if (key.endsWith('.py')) {
+            // if is .py file
+            content_element =  `<div>
+                                    <div style="display:inline-grid;">
+                                        <li class= "py_file" id=${parent_key} style="display: inline-flex;">
+                                        FILE_NAME
+                                        </li>
+                                    </div>
+                                    <div style="display:inline-grid;float: right;">
+                                        <input class="form-check-input" type="checkbox" value="" 
+                                        data-toggle="tooltip" title="mark to get test cases"
+                                        id=${parent_key}>
+                                    </div>
+                                </div>`;
+        } else {
+            // if is .txt, .xml or any other file
+            content_element =  `<div>
+                                    <div style="display:inline-grid;">
+                                        <li class= "py_file" id=${parent_key} style="display: inline-flex;">
+                                        FILE_NAME
+                                        </li>
+                                    </div>
+                                </div>`;
+        }
         content_element = content_element.replace('FILE_NAME', key);
     }
     

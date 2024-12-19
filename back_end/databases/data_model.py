@@ -60,9 +60,13 @@ class Single_LLM_Output:
 {self.test_cases}
 """
 
+    def get_dependencies(self)->List[str]:
+        outputs = re.findall(r'import (.+?) as|import (.+?)\n|from (.+?) import', self.intall_dependencies)
+        dependencies = []
+        for _result in outputs:
+            dependencies.extend([ele for ele in _result if ele != ''])
+        return list(set(dependencies))
+
 @dataclass
 class LLM_Output:
     total_reponse: List[Single_LLM_Output]
-
-    def tostring(self)->str:
-        return 

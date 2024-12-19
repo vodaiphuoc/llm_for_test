@@ -145,7 +145,7 @@ class Gemini_Inference(Gemini_Prompts):
     def __call__(self,
                  input_prompt: Union[str, List[str]]
                  )->Union[str, List[str]]:
-        total_prompt = self.prompt.format(example1 = self.example1, 
+        total_prompt = self.prompt.format(example1 = self.example1,
                                           example2 = self.example2, 
                                           total_content = input_prompt)
         final_prompt = self.gemma_prompt.format(input_prompt = total_prompt)
