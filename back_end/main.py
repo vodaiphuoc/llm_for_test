@@ -120,32 +120,48 @@ async def get_file_content(file_name:str, request: Request):
         return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
 
 
-@app.post("/generate_test_cases_task-1", response_class=JSONResponse)
-async def generate_test_cases(request: Request):
+@app.get("/generate_test_cases/{task_id}", response_class=JSONResponse)
+@app.post("/generate_test_cases/{task_id}", response_class=JSONResponse)
+async def generate_test_cases(task_id: str,request: Request):
     """Receive get request from front-end"""
+    print(task_id)
     try:
-        request_dict = await request.json()
-        request_files = request_dict['file_list']
+        if task_id == 'task-1':
+            request_dict = await request.json()
+            request_files = request_dict['file_list']
 
-        file_contents = [
-            {
-                'repo_url': query_result[0],
-                'file_content':query_result[1],
-                'module_path': query_result[2]
-            }
-            for file_name in request_files
-            if len((query_result:=request.app.test_cases_db.get_content_from_url(url = file_name,
-                                                        content_type='RawContent')
-             )) == 3
-        ]
+            file_contents = [
+                {
+                    'repo_url': query_result[0],
+                    'file_content':query_result[1],
+                    'module_path': query_result[2]
+                }
+                for file_name in request_files
+                if len((query_result:=request.app.test_cases_db.get_content_from_url(url = file_name,
+                                                            content_type='RawContent')
+                )) == 3
+            ]
 
-        response_data = request.app.model.run(file_contents)
-        # await asyncio.sleep(10)
-        return JSONResponse(status_code=200,content= {'data': 'created'})
+            response_status = request.app.model.prepare_input(file_contents)
+            # await asyncio.sleep(10)
+            return JSONResponse(status_code=200,content= {f'{task_id}': response_status})
         
+        elif task_id == 'task-2':
+            response_status = request.app.model.create_testcases()
+            # await asyncio.sleep(10)
+            return JSONResponse(status_code=200,content= {f'{task_id}': response_status})
+        elif task_id == 'task-3':
+            response_status = request.app.model.check_dependencies()
+            # await asyncio.sleep(10)
+            return JSONResponse(status_code=200,content= {f'{task_id}': response_status})
+        elif task_id == 'task-4':
+            response_status = request.app.model.execute_pytest()
+            # await asyncio.sleep(10)
+            return JSONResponse(status_code=200,content= {f'{task_id}': response_status})
+
     except Exception as e:
         print(e)
-        return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
+        return JSONResponse(status_code=500,content={f'{task_id}': False})
 
 
 # @app.get("/generate_test_cases/{task_id}")

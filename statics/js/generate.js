@@ -32,7 +32,20 @@ $('body').ready(()=>{
                     'method': 'GET',
                     'request_data': null,
                     'selector': 'task-2'
-                }
+                },
+                {
+                    'name':'Task 3',
+                    'method': 'GET',
+                    'request_data': null,
+                    'selector': 'task-3'
+                },
+                {
+                    'name':'Task 4',
+                    'method': 'GET',
+                    'request_data': null,
+                    'selector': 'task-4'
+                },
+
             ];
             init_status_panel("show_test_cases",".",task_params);
 
@@ -185,7 +198,7 @@ class Generate {
      * @returns {Promise}
      */
     #create_task (task_endpoint, method, request_data) {
-        const tartget_url = `http://127.0.0.1:8000/generate_test_cases_${task_endpoint}`;
+        const tartget_url = `http://127.0.0.1:8000/generate_test_cases/${task_endpoint}`;
 
         const request_init = {};
         request_init['method'] = method;
@@ -196,7 +209,6 @@ class Generate {
         if (request_data !== null) {
             request_init['body'] = JSON.stringify(request_data);
         }
-        console.log(request_init);
         return fetch(tartget_url,request_init);
     }
     

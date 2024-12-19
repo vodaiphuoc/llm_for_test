@@ -73,7 +73,6 @@ class PyTest_Environment(object):
             print(e)
             return False
 
-
 class Agent(Gemini_Inference, PyTest_Environment):
 
     single_content = f"""
@@ -96,6 +95,14 @@ class Agent(Gemini_Inference, PyTest_Environment):
         self.log_dir = log_dir
         self.pytest_report_dir = pytest_report_dir
 
+        self.data_repsonse_task = {
+            'prepare_input': None,
+            'create_testcases': None,
+            'check_dependencies': None,
+            'execute_pytest': None
+        }
+
+
     def run_batch(self, batch_prompt):
         """Run model in batch"""
         batch_reponse = ''
@@ -103,7 +110,7 @@ class Agent(Gemini_Inference, PyTest_Environment):
             batch_reponse += self(input_prompt = single_prompt)
         return batch_reponse
 
-    def run(self,
+    def prepare_input(self,
             files_content: List[Dict[str,str]]
             ):
         # prepare input
@@ -119,16 +126,34 @@ class Agent(Gemini_Inference, PyTest_Environment):
             else:
                 total_content += ' '+current_file_content
         batch_prompt.append(total_content)
-        
+        self.data_repsonse_task['prepare_input'] = batch_prompt
+        return True
+
+    def create_testcases(self):
+        assert self.data_repsonse_task['prepare_input'] is not None
+        batch_prompt = self.data_repsonse_task['prepare_input']
         # inference
         batch_reponse = self.run_batch(batch_prompt)
         reponse_dict = json.loads(batch_reponse)
+        self.data_repsonse_task['create_testcases'] = reponse_dict
+        return True
 
+    def check_dependencies(self):
+        assert self.data_repsonse_task['create_testcases'] is not None        
+        reponse_dict = self.data_repsonse_task['create_testcases'] 
         # make one file.py contains all test cases
         (output_temp_file_name, install_dependencies
         ) \
         = self.write_testcases_file(model_reponse = reponse_dict['total_reponse'])
+        self.data_repsonse_task['check_dependencies'] = (output_temp_file_name, install_dependencies)
+        return True
 
+    def execute_pytest(self):
+        assert self.data_repsonse_task['check_dependencies'] is not None        
+        (output_temp_file_name, install_dependencies) = self.data_repsonse_task['check_dependencies']
         # run pytest
-        status = self.run_make_report(test_cases_file_path= output_temp_file_name)
+        status = self.run_make_report(test_cases_file_path= output_temp_file_name, 
+                                      dependencies=install_dependencies)
 
+        self.data_repsonse_task['execute_pytest'] = status
+        return True
