@@ -1,7 +1,7 @@
-import sqlite3
-from data_model import File_List
-from typing import List, Tuple, Literal, Union
+from databases.data_model import File_List
 
+import sqlite3
+from typing import List, Tuple, Literal, Union
 from collections import namedtuple
 import re
 

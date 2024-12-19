@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
@@ -8,23 +8,24 @@ import asyncio
 import uvicorn
 import os
 import time
-
+from typing import List
 from loguru import logger
 
-from data_model import Script_File, File_List
-from db import DB_handler
+from databases.data_model import Script_File, File_List
+from databases.db import DB_handler
 from llm.agent_tester import Agent
-from typing import List
+
+
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # init engine here
     app.implement_db = DB_handler('db/implement.db')
     app.test_cases_db = DB_handler('db/test_cases.db')
-
     app.model = Agent()
+    
     yield
-
     app.implement_db.close()
     app.implement_db = None
 
@@ -77,20 +78,26 @@ def flatten_tree(tree_dict: dict, parent:str = ''):
     return dir_list
 
 @app.post("/upload_files", response_class=JSONResponse)
-async def upload_files_router(request: Request):
+async def upload_files_router(request: Request, background_tasks: BackgroundTasks):
     """Receive post request from expressjs"""
     try:
         request_dict = await request.json()
         dir_tree = request_dict['dict_tree']
         path2currFolder = request_dict['path2currDir']
-        
+
         # flatten tree
         list_files = flatten_tree(dir_tree,'')
         
         list_data = File_List(list_file = [Script_File(file_path = path2currFolder+dir) for dir in list_files])
+        
         # insert to DB
         request.app.implement_db.insert_files(list_data)
         request.app.test_cases_db.insert_files(list_data)
+
+        # create user repo with dict_tree
+        background_tasks.add_task(request.app.model.make_user_repo, 
+                                  path2currFolder = path2currFolder, 
+                                  folder_name = list(dir_tree.keys())[-1])
 
         return JSONResponse(status_code=200,content='')
     
@@ -109,28 +116,6 @@ async def get_file_content(file_name:str, request: Request):
     except Exception as e:
         print(e)
         return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
-
-
-# async def _make_test_cases(request: Request, file_list: List[str]):
-#     # get raw content of all request files
-    
-#     logger.info('in main: ',file_contents)
-#     return file_contents
-
-    # agent tester inference and
-    # output content (code) of test cases
-
-    
-
-    # save content of test cases to DB (`test_cases` table)
-
-
-
-# def _run_test_prepare_report():
-    # run pytest
-
-
-    # load report file of pytest, attach to reponse
 
 
 @app.post("/generate_test_cases_task-1", response_class=JSONResponse)
@@ -155,9 +140,6 @@ async def generate_test_cases(request: Request):
     except Exception as e:
         print(e)
         return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
-
-
-
 
 
 # @app.get("/generate_test_cases/{task_id}")

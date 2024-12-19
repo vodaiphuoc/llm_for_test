@@ -1,6 +1,8 @@
 myenv/
 node_modules/
 */__pycache__/
+*/*/__pycache__/
 .env
 test*.*
 codes/
+db/user_repo/*

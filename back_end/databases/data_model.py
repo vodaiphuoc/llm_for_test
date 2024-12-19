@@ -16,6 +16,7 @@ class Script_File:
     @computed_field
     @property
     def file_content(self)->str:
+        """Read file from local machine"""
         with open(self.file_path, 'r') as f:
             return f.read()
         
