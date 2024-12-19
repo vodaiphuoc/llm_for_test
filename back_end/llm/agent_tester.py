@@ -1,41 +1,14 @@
 from llm.run_pytest import run_make_report
-from databases.data_model import File_List
-
+from llm.model_hub import Gemini_Inference
+from databases.data_model import Single_LLM_Output
+import glob
 import os
 import shutil
 import pathlib
 from typing import Literal, List, Dict, Union
 from uuid import uuid4
 from loguru import logger
-from dotenv import load_dotenv
-import google.generativeai as genai
-
-class Gemini_Inference(object):
-    gemma_prompt = f"<start_of_turn>user\n{{input_prompt}}<end_of_turn><eos>\n"
-
-    def __init__(self,
-                model_url:str = 'gemini-1.5-flash',
-                context_length:int = 2048):
-        super().__init__()
-
-        load_dotenv()
-        genai.configure(api_key=os.environ['gemini_key'])
-        self.model = genai.GenerativeModel(model_url)
-        self.context_length = context_length
-    
-    def __call__(self,
-                 input_prompt: Union[str, List[str]]
-                 )->Union[str, List[str]]:
-
-        print('prompt:',input_prompt)       
-        final_prompt = self.gemma_prompt.format(input_prompt = input_prompt)
-        
-        response = self.model.generate_content(contents = final_prompt, 
-                                            #    generation_config = genai.GenerationConfig(
-                                            #     response_schema = Respone_Schema
-                                            #     )
-        )
-        return response.text.replace('```the function:','').replace('```','').replace('python','')
+import json
 
 
 class Write_User_Repo(object):
@@ -44,36 +17,41 @@ class Write_User_Repo(object):
         self.temp_user_repo = temp_user_repo
 
     def make_user_repo(self, path2currFolder:str, folder_name:str):
-        shutil.rmtree(self.temp_user_repo)
-        shutil.copytree(src=path2currFolder+'/'+folder_name, 
+        for _dir in glob.glob(self.temp_user_repo+'/*'):
+            shutil.rmtree(_dir, ignore_errors=True)
+        
+        shutil.copytree(src=path2currFolder+'/'+folder_name,
                         dst = self.temp_user_repo,
+                        dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns('__pycache__'))
 
 
 class Agent(Gemini_Inference, Write_User_Repo):
-    prompt = f"""Using pytest package in Python, write a testcase for the following Python file which include
-        may contains many Python functions (denote by def keyword). Don't include content of function in your result, 
-        only testing functions. You must import functions from 'Module path'
-        {{total_content}}
-        """
+
     single_content = f"""
-Module path:
-{{file_path}}
-Functions:
+**Original file path
+{{repo_url}}
+**Module import:
+{{module_path}}
+**Functions:
 {{file_content}}
 """
     def __init__(self,
                  log_dir: str = 'db',
-                 pytest_report_dir: str = 'db',
+                 pytest_report_dir: str = 'db/report.xml',
                  ) -> None:
         super().__init__()
         
-        if os.path.isdir(log_dir):
-            self.log_dir = log_dir
-        else:
+        if not os.path.isdir(log_dir):
             os.makedirs(log_dir)
+            
+        self.log_dir = log_dir
+        self.pytest_report_dir = pytest_report_dir
 
-    def _write_file(self, content:str):
+    def _write_file(self, model_reponse: List[Dict[str,str]]):
+        content = "\n".join([Single_LLM_Output(**single_output).tostring() 
+                             for single_output in model_reponse])
+
         file_name = str(uuid4())+'.py'
         with open(self.log_dir+'/'+file_name, 'w') as f:
             f.write(content)
@@ -81,10 +59,10 @@ Functions:
         return file_name
 
     def run_batch(self, batch_prompt):
+        """Run model in batch"""
         total_response = ''
         for single_prompt in batch_prompt:
-            total_response += self(input_prompt = \
-                                  self.prompt.format(total_content = single_prompt))
+            total_response += self(input_prompt = single_prompt)
         return total_response
 
     def run(self,
@@ -104,22 +82,17 @@ Functions:
                 total_content += ' '+current_file_content
         batch_prompt.append(total_content)
         
+
+        # inference
         total_response = self.run_batch(batch_prompt)
 
-        output_temp_file_name = self._write_file(total_response)
+        reponse_dict = json.loads(total_response)
+        print('reponse_dict: ',reponse_dict)
 
+        # make one file.py contains all test cases
+        output_temp_file_name = self._write_file(model_reponse = reponse_dict['total_reponse'])
 
-        # output_files = []
-        # for each_file_path in  files_to_test:
-        #     file_name = each_file_path.name.split('\\')[-1]
-        #     content = self._read_file(each_file_path)
-        #     response = self.model(input_prompt = self.prompt.format(file_path = str(each_file_path), 
-        #                                                             file_content = content))
-        #     output_files.append({
-        #         'content': response,
-        #         'output_file': test_cases_dir+'/test_'+file_name
-        #     })
+        # # run pytest
+        # status = run_make_report(logs_file= self.pytest_report_dir, 
+        #                 test_cases_file_path= output_temp_file_name)
 
-        
-        # run_make_report(logs_file= logs_file, 
-        #                 test_cases_dir= test_cases_dir)

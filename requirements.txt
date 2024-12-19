@@ -6,3 +6,4 @@ google-generativeai
 python-dotenv
 pytest
 loguru
+typing_extensions

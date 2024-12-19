@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.584" timestamp="2024-12-19T11:08:56.206655+00:00" hostname="DESKTOP-KB5LV5R"><testcase classname="" name="db.a11d7ce0-3e9d-4f03-b474-a593d8bc77dd" time="0.000"><error message="collection failure">ImportError while importing test module 'D:\Projects\Test_coverage_LLM\electron_app\db\a11d7ce0-3e9d-4f03-b474-a593d8bc77dd.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\Dell\AppData\Local\Programs\Python\Python310\lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+db\a11d7ce0-3e9d-4f03-b474-a593d8bc77dd.py:3: in &lt;module&gt;
+    from user_repo.implements.LLM import ModelHub, HuggingfaceModel, Gemini_Inference
+db\user_repo\implements\LLM.py:2: in &lt;module&gt;
+    import transformers
+E   ModuleNotFoundError: No module named 'transformers'</error></testcase></testsuite></testsuites>

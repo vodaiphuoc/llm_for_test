@@ -78,29 +78,31 @@ class DB_handler(object):
                 self.connection.execute(del_prompt)
 
                 create_prompt = """
-                CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, FileUrl TEXT, RawContent TEXT, RenderContent TEXT);
+                CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RawContent TEXT, RenderContent TEXT);
                 """ if self.db_type == "implement" else \
                 """
-                CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, FileUrl TEXT, impl_RawContent TEXT, test_RawContent TEXT , RenderContent TEXT);
+                CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RepoFileURL TEXT, impl_RawContent TEXT, moduleImport TEXT, test_RawContent TEXT , RenderContent TEXT);
                 """
 
                 self.connection.execute(create_prompt)
             
             with self.connection:
                 prompt = """
-                    INSERT INTO user_files (FileUrl, RawContent, RenderContent) VALUES (?,?,?);
+                    INSERT INTO user_files (SearchFileUrl, RawContent, RenderContent) VALUES (?,?,?);
                 """ if self.db_type == "implement" else \
                 """
-                    INSERT INTO user_files (FileUrl, impl_RawContent) VALUES (?,?);
+                    INSERT INTO user_files (SearchFileUrl, RepoFileURL, impl_RawContent, moduleImport) VALUES (?,?,?,?);
                 """
 
                 self.connection.executemany(prompt, [
-                                            (ele.save_file_path, 
+                                            (ele.search_file_path, 
                                              ele.file_content,
                                              render_content(ele.file_content)) 
                                              if self.db_type == "implement" else \
-                                             (ele.save_file_path,
-                                             ele.file_content) 
+                                             (ele.search_file_path,
+                                              ele.relative_copied_file_path,
+                                              ele.file_content,
+                                              ele.import_module)
                                             for ele in files.list_file
                                             ]
                                         )
@@ -116,10 +118,10 @@ class DB_handler(object):
                              )->str:
         try:
             with self.connection:
-                target_col = content_type if self.db_type == 'implement' else 'impl_RawContent'
-                query_prompt = f"""SELECT {target_col} FROM user_files WHERE FileUrl LIKE '%{url}';"""
+                target_col = content_type if self.db_type == 'implement' else 'RepoFileURL, impl_RawContent, moduleImport'
+                query_prompt = f"""SELECT {target_col} FROM user_files WHERE SearchFileUrl LIKE '%{url}';"""
                 records = self.connection.execute(query_prompt).fetchall()
-                return records[0][0]
+                return records[0][0] if self.db_type == 'implement' else records[0]
         
         except Exception as error:
             print(f"Cannot peform select file {url} error: ", error)

@@ -3,6 +3,7 @@ node_modules/
 */__pycache__/
 */*/__pycache__/
 .env
-test*.*
+*test*.py
 codes/
 db/user_repo/*
+db/*.py

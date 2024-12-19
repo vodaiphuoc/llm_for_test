@@ -88,8 +88,10 @@ async def upload_files_router(request: Request, background_tasks: BackgroundTask
         # flatten tree
         list_files = flatten_tree(dir_tree,'')
         
-        list_data = File_List(list_file = [Script_File(file_path = path2currFolder+dir) for dir in list_files])
-        
+        list_data = File_List(list_file = [Script_File(file_path = path2currFolder+dir,
+                                                       relative_file_path = dir) 
+                                            for dir in list_files])
+
         # insert to DB
         request.app.implement_db.insert_files(list_data)
         request.app.test_cases_db.insert_files(list_data)
@@ -127,15 +129,19 @@ async def generate_test_cases(request: Request):
 
         file_contents = [
             {
-                'file_path': file_name,
-                'file_content':request.app.test_cases_db.get_content_from_url(url = file_name,
-                                                        content_type='RawContent')
+                'repo_url': query_result[0],
+                'file_content':query_result[1],
+                'module_path': query_result[2]
             }
             for file_name in request_files
+            if len((query_result:=request.app.test_cases_db.get_content_from_url(url = file_name,
+                                                        content_type='RawContent')
+             )) == 3
         ]
+
         response_data = request.app.model.run(file_contents)
         # await asyncio.sleep(10)
-        return JSONResponse(status_code=200,content= {'data': response_data})
+        return JSONResponse(status_code=200,content= {'data': 'created'})
         
     except Exception as e:
         print(e)
