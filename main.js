@@ -9,6 +9,7 @@ const createWindow = () => {
     resizable: false,
     maximizable: false,
     minimizable: false,
+    icon: path.join(__dirname, './statics/favicon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')
     }

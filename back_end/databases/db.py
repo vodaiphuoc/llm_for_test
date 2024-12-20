@@ -1,7 +1,8 @@
 from databases.data_model import File_List
 
 import sqlite3
-from typing import List, Tuple, Literal, Union
+import json
+from typing import List, Tuple, Literal, Union, Dict
 from collections import namedtuple
 import re
 
@@ -38,7 +39,7 @@ def render_content(file_content:str)->str:
             
             number_line_tabs = tab_match.span()[-1]//4 - 1
 
-            if number_line_tabs >0:
+            if number_line_tabs > 0:
                 tab_DOM_list += [total_pattern.line_tab for _ in range(number_line_tabs)]
                 tab_content =  "".join(tab_DOM_list)
 
@@ -133,3 +134,77 @@ class DB_handler(object):
         records = cursor.fetchall()
 
         return records
+    
+
+class Dependencies_DB_Handler(object):
+    """
+    Database for storage package name and PyPi package index
+    Init only inside agent tester
+    """
+    def __init__(self, 
+                 db_url:str = 'db/dependencies.db',
+                 pre_check_pkg_file:str = 'pre_py_pkgs.json'
+                 ) -> List[str]:
+        try:
+            self.connection = sqlite3.connect(db_url)
+        except sqlite3.Error as error:
+            print(f"Cannot connect to {db_url} db, ", error)
+        
+        self._create_tables_on_start()
+        self.pre_check_pkg_file = pre_check_pkg_file
+
+
+    def _create_tables_on_start(self):
+        try:
+            with self.connection:
+                del_prompt = """DROP TABLE IF EXISTS packages;"""
+                self.connection.execute(del_prompt)
+
+                create_prompt = """
+                CREATE TABLE IF NOT EXISTS packages (id INT PRIMARY KEY, import_pkg_name TEXT, PyPi_index TEXT, version TEXT);
+                """
+                self.connection.execute(create_prompt)
+        except Exception as error:
+            print(f"Cannot peform create table with error: ", error)
+
+
+    def check_pkg_updates(self):
+        with open(self.pre_check_pkg_file,'r') as fp:
+            pre_install_pkgs = json.load(fp)
+
+        to_update_pkgs = []
+        for _pkg in pre_install_pkgs:
+            if isinstance(self.query_package(_pkg['import_pkg_name']), bool):
+                to_update_pkgs.append(_pkg)
+        
+        self.insert_files(to_update_pkgs)
+        return to_update_pkgs
+
+
+    def insert_files(self, new_pkgs_data: List[Dict[str,str]])->None:
+        try:            
+            with self.connection:
+                prompt = """
+                    INSERT INTO packages (import_pkg_name, PyPi_index, version) VALUES (?,?,?);
+                """ 
+                self.connection.executemany(prompt, [
+                                            (ele['import_pkg_name'], 
+                                             ele['PyPi_index'],
+                                             ele['version']
+                                             ) 
+                                            for ele in new_pkgs_data
+                                            ]
+                                        )
+        except Exception as error:
+            print(f"Cannot peform insert packages: {new_pkgs_data},\n with error: ", error)
+
+    def query_package(self, import_name:str)->Union[bool, Tuple[str]]:
+        assert isinstance(import_name,str), f"Found type: {type(import_name)}"
+        try:
+            with self.connection:
+                query_prompt = f"""SELECT PyPi_index, version FROM packages WHERE import_pkg_name = '{import_name}';"""
+                records = self.connection.execute(query_prompt).fetchall()
+                return records[0] if len(records) > 0 else False
+        
+        except Exception as error:
+            print(f"Cannot peform search package {import_name} error: ", error)

@@ -22,6 +22,8 @@ class Gemini_Prompts(object):
         {{example1}}
         **Example 2
         {{example2}}
+        **Example 3
+        {{example3}}
 
         - Now, give output with below tasks:
         {{total_content}}
@@ -46,18 +48,25 @@ def find_max_element(x: List[int])->int:
     'original_file_path':'user_repo/implements/my_function.py'
     'import_module_command': 'from user_repo.implements.my_function import capital_case, find_max_element'
     'intall_dependencies': ''
-    'built_in_import': 'from typing import List'
-    'test_cases': 
+    'built_in_import': 
+from typing import List
 import pytest
 
+    'test_cases': [{
+        'target': capital_case,
+        'test_cases_codes':
 def test_capital_case():
     assert capital_case('hello') == 'Hello'
     assert capital_case('world') == 'World'
-
+    },
+    {
+        'target': find_max_element,
+        'test_cases_codes':
 def test_find_max_element():
     assert find_max_element([1, 2, 3, 4, 5]) == 5
     assert find_max_element([5, 4, 3, 2, 1]) == 5
-    assert find_max_element([-1, -2, -3]) == -1
+    assert find_max_element([-1, -2, -3]) == -1    
+    }]
 
 }
 """
@@ -99,7 +108,10 @@ import google.generativeai as genai
 import pytest'
     'built_in_import': 'from typing import Union, List
 import os'
-    'test_cases':
+
+    'test_cases': [{
+        'target': HuggingfaceModel,
+        'test_cases_codes':
 @pytest.fixture
 def model_url():
     # Returns a valid model URL for testing
@@ -126,6 +138,98 @@ def test_context_length_attribute(model_url, context_length):
     # Tests if the context_length attribute is set correctly
     model = HuggingfaceModel(model_url, context_length)
     assert model.context_length == context_length
+    }]
+}
+"""
+
+    example3 = """
+**Original file path
+user_repo/implements/leet_code.py
+**Module import:
+user_repo.implements.leet_code
+**Functions    
+import math
+import itertools
+import bisect
+import collections
+import string
+import heapq
+import functools
+import sortedcontainers
+from typing import List, Dict, Tuple, Iterator
+
+def palindromePairs(self, words: List[str]) -> List[List[int]]:
+    ans = []
+    dict = {
+        word[::-1]: i 
+        for i, word in enumerate(words)
+    }
+
+    for i, word in enumerate(words):
+      if "" in dict and dict[""] != i and word == word[::-1]:
+        ans.append([i, dict[""]])
+
+      for j in range(1, len(word) + 1):
+        l = word[:j]
+        r = word[j:]
+        if l in dict and dict[l] != i and r == r[::-1]:
+          ans.append([i, dict[l]])
+        if r in dict and dict[r] != i and l == l[::-1]:
+          ans.append([dict[r], i])
+
+    return ans
+
+**Output
+{        
+    'original_file_path':'user_repo/implements/leet_code.py'
+    'import_module_command': 'from user_repo.implements.leet_code import palindromePairs'
+    'intall_dependencies': 'import sortedcontainers'
+    'built_in_import': 
+import math
+import itertools
+import bisect
+import collections
+import string
+import heapq
+import functools
+from typing import List, Dict, Tuple, Iterator
+import pytest
+
+    'test_cases': [{
+        'target': palindromePairs,
+        'test_cases_codes':
+def test_empty_input():
+    words = []
+    expected = []
+    assert palindromePairs(words) == expected
+
+def test_single_word():
+    words = ["a"]
+    expected = []
+    assert palindromePairs(words) == expected
+
+def test_no_palindromes():
+    words = ["abc", "def", "ghi"]
+    expected = []
+    assert palindromePairs(words) == expected
+
+def test_simple_palindromes():
+    words = ["a", "abba"]
+    expected = [[0, 1], [1, 0]]
+    assert palindromePairs(words) == expected
+
+def test_multiple_palindromes():
+    words = ["bat", "tab", "cat"]
+    expected = [[0, 1], [1, 0]]
+    assert palindromePairs(words) == expected
+
+def test_complex_case():
+    words = ["abcd", "dcba", "lls", "s", "sssll"]
+    expected = [[0, 1], [1, 0], [3, 2], [2, 4]]
+    assert palindromePairs(words) == expected
+    }]
+
+}
 """
 
 
@@ -147,6 +251,7 @@ class Gemini_Inference(Gemini_Prompts):
                  )->Union[str, List[str]]:
         total_prompt = self.prompt.format(example1 = self.example1,
                                           example2 = self.example2, 
+                                          example3 = self.example3,
                                           total_content = input_prompt)
         final_prompt = self.gemma_prompt.format(input_prompt = total_prompt)
         

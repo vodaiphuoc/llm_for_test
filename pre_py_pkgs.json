@@ -1,0 +1,17 @@
+[
+    {"import_pkg_name": "torch","PyPi_index": "torch", "version":""},
+    {"import_pkg_name": "transformers","PyPi_index": "transformers", "version":""},
+    {"import_pkg_name": "pydantic","PyPi_index": "pydantic", "version":""},
+    {"import_pkg_name": "pandas","PyPi_index": "pandas", "version":""},
+    {"import_pkg_name": "numpy","PyPi_index": "numpy", "version":"1.24"},
+    {"import_pkg_name": "cv2","PyPi_index":"opencv-python", "version":""},
+    {"import_pkg_name": "google.generativeai","PyPi_index":"google-generativeai", "version":""},
+    {"import_pkg_name": "dotenv","PyPi_index":"python-dotenv", "version":""},
+    {"import_pkg_name": "typing_extensions","PyPi_index":"typing_extensions", "version":""},
+    {"import_pkg_name": "bs4","PyPi_index":"beautifulsoup4", "version":""},
+    {"import_pkg_name": "fastapi","PyPi_index":"fastapi", "version":""},
+    {"import_pkg_name": "sortedcontainers","PyPi_index": "sortedcontainers", "version":""},
+    {"import_pkg_name": "pytest","PyPi_index": "pytest", "version":""}
+]
+
+
