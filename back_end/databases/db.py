@@ -1,4 +1,4 @@
-from databases.data_model import File_List
+from databases.api_data_model import File_List
 
 import sqlite3
 import json
@@ -142,44 +142,23 @@ class Dependencies_DB_Handler(object):
     Init only inside agent tester
     """
     def __init__(self, 
-                 db_url:str = 'db/dependencies.db',
-                 pre_check_pkg_file:str = 'pre_py_pkgs.json'
-                 ) -> List[str]:
+                 db_url:str = 'db/dependencies.db') -> List[str]:
         try:
             self.connection = sqlite3.connect(db_url)
         except sqlite3.Error as error:
             print(f"Cannot connect to {db_url} db, ", error)
         
         self._create_tables_on_start()
-        self.pre_check_pkg_file = pre_check_pkg_file
-
 
     def _create_tables_on_start(self):
         try:
             with self.connection:
-                del_prompt = """DROP TABLE IF EXISTS packages;"""
-                self.connection.execute(del_prompt)
-
                 create_prompt = """
                 CREATE TABLE IF NOT EXISTS packages (id INT PRIMARY KEY, import_pkg_name TEXT, PyPi_index TEXT, version TEXT);
                 """
                 self.connection.execute(create_prompt)
         except Exception as error:
             print(f"Cannot peform create table with error: ", error)
-
-
-    def check_pkg_updates(self):
-        with open(self.pre_check_pkg_file,'r') as fp:
-            pre_install_pkgs = json.load(fp)
-
-        to_update_pkgs = []
-        for _pkg in pre_install_pkgs:
-            if isinstance(self.query_package(_pkg['import_pkg_name']), bool):
-                to_update_pkgs.append(_pkg)
-        
-        self.insert_files(to_update_pkgs)
-        return to_update_pkgs
-
 
     def insert_files(self, new_pkgs_data: List[Dict[str,str]])->None:
         try:            

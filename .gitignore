@@ -9,4 +9,4 @@ db/pytest_execute_env/*
 !db/pytest_execute_env/ReadMe.md
 db/*.py
 test_pytest/
-
+example_google.py

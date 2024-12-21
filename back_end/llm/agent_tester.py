@@ -1,6 +1,6 @@
 from llm.model_hub import Gemini_Inference
-from databases.data_model import Single_LLM_Output
-from databases.db import Dependencies_DB_Handler
+from databases.llm_data_model import Single_LLM_Output
+from databases.db import Dependencies_DB_Handler, DB_handler
 import glob
 import os
 import shutil
@@ -9,11 +9,12 @@ from typing import Literal, List, Dict, Union
 from uuid import uuid4
 from loguru import logger
 import json
-
+import pathlib
 
 class PyTest_Environment(object):
     def __init__(self,
-                 pytest_dir = 'db/pytest_execute_env'
+                 pytest_dir = 'db/pytest_execute_env',
+                 pre_check_pkg_file:str = 'pre_py_pkgs.json'
                  ) -> None:
         self.temp_user_repo = pytest_dir + '/user_repo'
         self.log_dir = pytest_dir
@@ -25,17 +26,8 @@ class PyTest_Environment(object):
         self.pkg_db = Dependencies_DB_Handler()
 
         # update at start of program
-        new_pkgs = self.pkg_db.check_pkg_updates()
-        print('new packages :',new_pkgs)
-        # initialize venv `testenv` when start app
-        try:
-            os.system(command= f'cd {self.log_dir} && python -m venv testenv')
-            string_new_pkgs = " ".join([ele['PyPi_index'] for ele in new_pkgs])
-            os.system(command= f'{self.python_env_path} -m pip install {string_new_pkgs}')
-
-        except Exception as e:
-            print(e)
-
+        update_status = self._check_new_pkg_updates(pre_check_pkg_file)
+        
         # clean everything in user repo
         for _dir in glob.glob(self.temp_user_repo+'/*'):
             shutil.rmtree(_dir, ignore_errors=True)
@@ -43,9 +35,36 @@ class PyTest_Environment(object):
         for _file in glob.glob(pathname= '*[.py,.xml]', root_dir=pytest_dir):
             os.remove(pytest_dir+'/'+_file)
 
-    def make_user_repo(self, path2currFolder:str, folder_name:str):
+    def _check_new_pkg_updates(self, pre_check_pkg_file:str):
+        with open(pre_check_pkg_file,'r') as fp:
+            pre_install_pkgs = json.load(fp)
+
+        to_update_pkgs = []
+        for _pkg in pre_install_pkgs:
+            if isinstance(self.pkg_db.query_package(_pkg['import_pkg_name']), bool):
+                to_update_pkgs.append(_pkg)
+        
+        if len(to_update_pkgs) > 0:
+            print('_check_new_pkg_updates: ',to_update_pkgs)
+            try:
+                string_new_pkgs = " ".join([ele['PyPi_index'] for ele in to_update_pkgs])
+                os.system(command= f'{self.python_env_path} -m pip install {string_new_pkgs}')
+                self.pkg_db.insert_files(to_update_pkgs)
+                return True
+
+            except Exception as e:
+                print(e)
+                return False
+
+        return None
+
+
+    def make_user_repo(self, 
+                       path2currFolder: pathlib.WindowsPath, 
+                       folder_name:str
+                       ):
         """this is called in main.py"""
-        shutil.copytree(src=path2currFolder+'/'+folder_name,
+        shutil.copytree(src=path2currFolder / folder_name,
                         dst = self.temp_user_repo,
                         dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns('__pycache__'))
@@ -77,16 +96,18 @@ class PyTest_Environment(object):
             if isinstance(self.pkg_db.query_package(_pkg), bool):
                 to_update_pkgs.append(_pkg)
         
-        # install new packages
-        if len(to_update_pkgs) > 0:
-            for _new_pkg in to_update_pkgs:
-                os.system(command= f'{self.python_env_path} -m pip install {_new_pkg}')
+        print('to_update_pkgs: ',to_update_pkgs)
 
-            self.pkg_db.insert_files(to_update_pkgs)
-            return {'package to update':to_update_pkgs}
+        # install new packages
+        # if len(to_update_pkgs) > 0:
+        #     for _new_pkg in to_update_pkgs:
+        #         os.system(command= f'{self.python_env_path} -m pip install {_new_pkg}')
+
+        #     self.pkg_db.insert_files(to_update_pkgs)
+        #     return {'package to update':to_update_pkgs}
         
-        else:
-            return {'package to update':'No package to update'}
+        # else:
+        #     return {'package to update':'No package to update'}
 
     def run_make_report(self,
                         test_cases_file_path:str
@@ -104,9 +125,6 @@ class PyTest_Environment(object):
             print(e)
             return False
 
-# db/pytest_execute_env/testenv/Scripts/python.exe -m pytest db/29cbad18-11fd-407b-a1f1-888249c0a9a2.py   --junit-xml=db/report.xml
-
-
 class Agent(Gemini_Inference, PyTest_Environment):
 
     single_content = f"""
@@ -117,17 +135,8 @@ class Agent(Gemini_Inference, PyTest_Environment):
 **Functions:
 {{file_content}}
 """
-    def __init__(self,
-                 log_dir: str = 'db',
-                 pytest_report_dir: str = 'db/report.xml',
-                 ) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        
-        if not os.path.isdir(log_dir):
-            os.makedirs(log_dir)
-            
-        self.log_dir = log_dir
-        self.pytest_report_dir = pytest_report_dir
 
         # task results will be assigned here
         self.data_repsonse_task = {
@@ -146,12 +155,25 @@ class Agent(Gemini_Inference, PyTest_Environment):
 
     # task
     def prepare_input(self,
-            files_content: List[Dict[str,str]]
+            request_files: List[str],
+            test_cases_db: DB_handler
             ):
+        # query raw content in `test_case.db`
+        file_contents = [
+                {
+                    'repo_url': query_result[0],
+                    'file_content':query_result[1],
+                    'module_path': query_result[2]
+                }
+                for file_name in request_files
+                if len((query_result:= test_cases_db.get_content_from_url(url = file_name,
+                                                            content_type='RawContent')
+                )) == 3
+            ]
         # prepare input
         batch_prompt = []
         total_content = ''
-        for content_dict in files_content:
+        for content_dict in file_contents:
             current_file_content = self.single_content.format(**content_dict)
             if len(total_content.split(' ')) + \
                     len(current_file_content.split(' ')) > self.context_length:
@@ -185,7 +207,6 @@ class Agent(Gemini_Inference, PyTest_Environment):
 
         self.data_repsonse_task['check_dependencies'] = output_temp_file_name
         return self.check_install_dependencies(install_dependencies)
-        # return True
 
     # task
     def execute_pytest(self):

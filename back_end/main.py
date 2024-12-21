@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi import FastAPI, Request, BackgroundTasks, Depends, Body
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
@@ -7,15 +7,14 @@ from fastapi.staticfiles import StaticFiles
 import asyncio
 import uvicorn
 import os
+import re
 import time
-from typing import List
+from typing import List, Annotated
 from loguru import logger
 
-from databases.data_model import Script_File, File_List
+from databases.api_data_model import Script_File, File_List, UploadFilesBody, UploadFilesBody_Testing
 from databases.db import DB_handler
 from llm.agent_tester import Agent
-
-
 
 
 @asynccontextmanager
@@ -64,11 +63,11 @@ app.add_middleware(CORSMiddleware,
 # 		name = "index.html"
 # 		)
 
-def flatten_tree(tree_dict: dict, parent:str = ''):
+def _flatten_tree(tree_dict: dict, parent:str = ''):
     dir_list = []
     for k, v in tree_dict.items():
         if isinstance(v, dict):
-            result_list = flatten_tree(v, k) if parent == '' else flatten_tree(v, parent+'/'+k)
+            result_list = _flatten_tree(v, k) if parent == '' else _flatten_tree(v, parent+'/'+k)
             dir_list.extend(result_list)
         else:
             if parent == '':
@@ -77,29 +76,62 @@ def flatten_tree(tree_dict: dict, parent:str = ''):
                 dir_list.append(parent+'/'+v)
     return dir_list
 
+def get_app(request: Request):
+    return request.app
+
+class UploadFileDependencies:
+    """Dependency to classify input which `request_data` can be
+    istance of `UploadFilesBody` or `UploadFilesBody_Testing`.
+    """
+    def __init__(self,
+                 request_data: Annotated[UploadFilesBody | UploadFilesBody_Testing, Body()],
+                 app: Annotated[FastAPI | None, Depends(get_app)] = None
+                 ):
+        if isinstance(request_data, UploadFilesBody) and app is not None:
+            
+            self.path2currFolder = request_data.path2currDir
+            # flatten tree
+            dir_tree = request_data.dict_tree
+            self.list_files = _flatten_tree(dir_tree,'')
+
+            # selected_folder_name
+            self.selected_folder_name =list(dir_tree.keys())[-1]
+
+            # db and agent accessing
+            self.implement_db = app.implement_db
+            self.test_cases_db = app.test_cases_db
+            self.model = app.model
+            
+        else:
+            # testing case
+            assert isinstance(request_data, UploadFilesBody_Testing)
+            self.path2currFolder = request_data.path2currDir
+            self.list_files = request_data.list_files
+
+            # selected_folder_name
+            self.selected_folder_name = request_data.selected_folder_name
+
+            # db and agent accessing
+            self.implement_db = request_data.implement_db
+            self.test_cases_db = request_data.test_cases_db
+            self.model = request_data.model    
+
 @app.post("/upload_files", response_class=JSONResponse)
-async def upload_files_router(request: Request, background_tasks: BackgroundTasks):
+async def upload_files_router(params: Annotated[UploadFileDependencies, 
+                                                Depends(UploadFileDependencies)]
+                            ):
     """Receive post request from expressjs"""
     try:
-        request_dict = await request.json()
-        dir_tree = request_dict['dict_tree']
-        path2currFolder = request_dict['path2currDir']
-
-        # flatten tree
-        list_files = flatten_tree(dir_tree,'')
-        
-        list_data = File_List(list_file = [Script_File(file_path = path2currFolder+dir,
+        list_data = File_List(list_file = [Script_File(file_path = params.path2currFolder / dir,
                                                        relative_file_path = dir) 
-                                            for dir in list_files])
-
+                                            for dir in params.list_files])
         # insert to DB
-        request.app.implement_db.insert_files(list_data)
-        request.app.test_cases_db.insert_files(list_data)
+        params.implement_db.insert_files(list_data)
+        params.test_cases_db.insert_files(list_data)
 
         # create user repo with dict_tree
-        background_tasks.add_task(request.app.model.make_user_repo, 
-                                  path2currFolder = path2currFolder, 
-                                  folder_name = list(dir_tree.keys())[-1])
+        params.model.make_user_repo(path2currFolder = params.path2currFolder, 
+                                         folder_name = params.selected_folder_name)
 
         return JSONResponse(status_code=200,content='')
     
@@ -127,22 +159,11 @@ async def generate_test_cases(task_id: str,request: Request):
     print(task_id)
     try:
         if task_id == 'task-1':
-            request_dict = await request.json()
-            request_files = request_dict['file_list']
+            request_data = await request.json()
+            request_files = request_data['file_list']
 
-            file_contents = [
-                {
-                    'repo_url': query_result[0],
-                    'file_content':query_result[1],
-                    'module_path': query_result[2]
-                }
-                for file_name in request_files
-                if len((query_result:=request.app.test_cases_db.get_content_from_url(url = file_name,
-                                                            content_type='RawContent')
-                )) == 3
-            ]
-
-            response_status = request.app.model.prepare_input(file_contents)
+            response_status = request.app.model.prepare_input(request_files = request_files,
+                                                            test_cases_db = request.app.test_cases_db)
             # await asyncio.sleep(10)
             return JSONResponse(status_code=200,content= {f'{task_id}': response_status})
         
@@ -162,31 +183,6 @@ async def generate_test_cases(task_id: str,request: Request):
     except Exception as e:
         print(e)
         return JSONResponse(status_code=500,content={f'{task_id}': False})
-
-
-# @app.get("/generate_test_cases/{task_id}")
-# async def generate_test_cases(task_id: str,request: Request):
-#     """Receive get request from front-end"""
-#     try:
-#         if task_id == 'task-1':
-#             logger.info('in main: ',request)
-#             request_dict = request.json()
-#             logger.info('in main: ',request_dict)
-#             # request_files = request_dict['file_list']
-#             # logger.info('in main: ',request_files)
-
-
-#             # response_data = _make_test_cases(request, request_files)
-#             # await asyncio.sleep(10)
-#             return JSONResponse(status_code=200,content= {'data': [1,2,3,4]})
-#         else:
-#             # await asyncio.sleep(5)
-#             return JSONResponse(status_code=200,content= {'data': [5,6,7,8]})
-    
-#     except Exception as e:
-#         print(e)
-#         return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
-
 
 
 async def main_run():

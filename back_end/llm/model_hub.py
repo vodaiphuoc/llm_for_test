@@ -1,5 +1,5 @@
 
-from databases.data_model import LLM_Output
+from databases.llm_data_model import LLM_Output
 import os
 from typing import Literal, List, Dict, Union
 from dotenv import load_dotenv
