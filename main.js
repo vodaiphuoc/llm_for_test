@@ -1,7 +1,7 @@
 const { app, BrowserWindow } = require('electron/main');
 const path = require('node:path');
 let {PythonShell} = require('python-shell');
-const { start_express } = require('./back_end/express_apis.js');
+const { start_express } = require('./backend/express_apis.js');
 
 const createWindow = () => {
     const win = new BrowserWindow({
@@ -25,7 +25,7 @@ function start_py_server () {
         mode: 'text',
         pythonPath: 'myenv/Scripts/python.exe',
         pythonOptions: ['-u'], // get print results in real-time
-        scriptPath: 'back_end'
+        scriptPath: 'backend'
       };
     PythonShell.run('main.py', options);
 }

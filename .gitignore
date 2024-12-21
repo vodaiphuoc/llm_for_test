@@ -4,9 +4,11 @@ node_modules/
 */*/__pycache__/
 .env
 *test*.py
+!api_testing.py
 codes/
 db/pytest_execute_env/*
 !db/pytest_execute_env/ReadMe.md
 db/*.py
 test_pytest/
 example_google.py
+.pytest_cache/

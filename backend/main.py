@@ -50,18 +50,6 @@ app.add_middleware(CORSMiddleware,
                    allow_methods=["*"],
                    allow_headers=["*"]
                    )
-# app.mount(path = '/statics', 
-#           app = StaticFiles(directory='./statics', html = False), 
-#           name='statics')
-
-# for testing on web browser only
-# templates = Jinja2Templates(directory='./templates')
-# @app.get("/", response_class=HTMLResponse)
-# async def index_router(request: Request):
-# 	return templates.TemplateResponse(
-# 		request = request,
-# 		name = "index.html"
-# 		)
 
 def _flatten_tree(tree_dict: dict, parent:str = ''):
     dir_list = []
