@@ -66,6 +66,26 @@ class UploadFilesBody:
                                     }]
                                     )
 
+
+@dataclass
+class GenerateTask_Testing:
+    """Dataclass for testing purpose only.
+    
+    Attributes:
+        - model (`Agent`): Agent tester, see implement at `backend.llm.agent_tester.py`.
+        - test_cases_db (`DB_handler`): Database stores implement codes and testcase for Agent.
+        - request_file_dict (`Dict[str,List[str]]`): Relative path from user folder to files.
+    """
+    model: Any
+    test_cases_db: Any
+    request_file_dict: Dict[str,List[str]] = Field(examples=[{'file_list': ['llm_for_testPATHSPLITimplementsPATHSPLITleet_code.py']}])
+
+    @computed_field
+    @property
+    def file_list(self)->List[str]:
+        return self.request_file_dict['request_file_dict']
+
+
 @dataclass
 class Script_File:
     file_path: FilePath # original file path to computer's disk

@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, BackgroundTasks, Depends, Body
+from fastapi import FastAPI, Request, BackgroundTasks, Depends, Body, Path
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
@@ -9,12 +9,14 @@ import uvicorn
 import os
 import re
 import time
-from typing import List, Annotated
+from typing import List, Annotated, Dict, Any
 from loguru import logger
 
-from databases.api_data_model import Script_File, File_List, UploadFilesBody, UploadFilesBody_Testing
+from databases.api_data_model import Script_File, File_List, \
+UploadFilesBody, UploadFilesBody_Testing, GenerateTask_Testing
+
 from databases.db import DB_handler
-from llm.agent_tester import Agent
+from llm.agent import Agent
 
 
 @asynccontextmanager
@@ -65,6 +67,7 @@ def _flatten_tree(tree_dict: dict, parent:str = ''):
     return dir_list
 
 def get_app(request: Request):
+    """get FastAPI app in each request"""
     return request.app
 
 class UploadFileDependencies:
@@ -140,37 +143,57 @@ async def get_file_content(file_name:str, request: Request):
         return JSONResponse(status_code=500,content={'html_content': 'ERROR LOAD FILE'})
 
 
+class GenerateTasksDependencies:
+    def __init__(self,
+        task_id: Annotated[str, Path()],
+        request_data: Annotated[ Dict[str, List[str]] | GenerateTask_Testing | None, Body()] = None,
+        app: Annotated[FastAPI | None, Depends(get_app)] = None,
+        )-> None:
+        
+        if app is not None and not isinstance(request_data, GenerateTask_Testing):
+            self.model = app.model
+            
+            if task_id == 'task-1':
+                self.test_cases_db = app.test_cases_db
+                # only task 1 has body data
+                self.request_files = request_data['file_list']
+            self.task_id = task_id
+        
+        else:
+            # testing branch
+            self.model = request_data.model
+            self.test_cases_db = request_data.test_cases_db
+            self.request_files = request_data.file_list
+            self.task_id = task_id
+
 @app.get("/generate_test_cases/{task_id}", response_class=JSONResponse)
 @app.post("/generate_test_cases/{task_id}", response_class=JSONResponse)
-async def generate_test_cases(task_id: str,request: Request):
+async def generate_test_cases(params: Annotated[GenerateTasksDependencies, 
+                                                Depends(GenerateTasksDependencies)]):
     """Receive get request from front-end"""
-    print(task_id)
     try:
-        if task_id == 'task-1':
-            request_data = await request.json()
-            request_files = request_data['file_list']
-
-            response_status = request.app.model.prepare_input(request_files = request_files,
-                                                            test_cases_db = request.app.test_cases_db)
+        if params.task_id == 'task-1':
+            response_status = params.model.prepare_input(request_files = params.request_files,
+                                                            test_cases_db = params.test_cases_db)
             # await asyncio.sleep(10)
-            return JSONResponse(status_code=200,content= {f'{task_id}': response_status})
+            return JSONResponse(status_code=200,content= {f'{params.task_id}': response_status})
         
-        elif task_id == 'task-2':
-            response_status = request.app.model.create_testcases()
+        elif params.task_id == 'task-2':
+            response_status = params.model.create_testcases()
             # await asyncio.sleep(10)
-            return JSONResponse(status_code=200,content= {f'{task_id}': response_status})
-        elif task_id == 'task-3':
-            response_status = request.app.model.check_dependencies()
+            return JSONResponse(status_code=200,content= {f'{params.task_id}': response_status})
+        elif params.task_id == 'task-3':
+            response_status = params.model.check_dependencies()
             # await asyncio.sleep(10)
-            return JSONResponse(status_code=200,content= {f'{task_id}': response_status})
-        elif task_id == 'task-4':
-            response_status = request.app.model.execute_pytest()
+            return JSONResponse(status_code=200,content= {f'{params.task_id}': response_status})
+        elif params.task_id == 'task-4':
+            response_status = params.model.execute_pytest()
             # await asyncio.sleep(10)
-            return JSONResponse(status_code=200,content= {f'{task_id}': response_status})
+            return JSONResponse(status_code=200,content= {f'{params.task_id}': response_status})
 
     except Exception as e:
         print(e)
-        return JSONResponse(status_code=500,content={f'{task_id}': False})
+        return JSONResponse(status_code=500,content={f'{params.task_id}': False})
 
 
 async def main_run():
