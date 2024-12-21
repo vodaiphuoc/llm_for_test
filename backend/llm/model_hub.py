@@ -236,14 +236,28 @@ class Gemini_Inference(Gemini_Prompts):
     gemma_prompt = f"<start_of_turn>user\n{{input_prompt}}<end_of_turn><eos>\n"
 
     def __init__(self,
-                model_url:str = 'gemini-1.5-flash',
-                context_length:int = 2048):
+                model_url:str = 'gemini-1.5-flash'):
         super().__init__()
 
         load_dotenv()
         genai.configure(api_key=os.environ['gemini_key'])
         self.model = genai.GenerativeModel(model_url)
-        self.context_length = context_length
+        
+
+        model_info = genai.get_model(f"models/{model_url}")
+        # print(f"{model_info.input_token_limit=}")
+
+        raw_prompt = self.prompt.format(example1 = self.example1,
+                                          example2 = self.example2, 
+                                          example3 = self.example3,
+                                          total_content = "")
+        # print("total based tokens: ", self.model.count_tokens(raw_prompt))
+        # print("total cached tokens: ", self.model.count_tokens(raw_prompt).cached_content_token_count)
+
+        self.context_length = model_info.input_token_limit - \
+                                self.model.count_tokens(raw_prompt).total_tokens
+
+        print('self.context_length: ', self.context_length)
 
     def __call__(self,
                  input_prompt: Union[str, List[str]]

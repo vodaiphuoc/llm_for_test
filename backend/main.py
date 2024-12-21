@@ -120,10 +120,10 @@ async def upload_files_router(params: Annotated[UploadFileDependencies,
         params.implement_db.insert_files(list_data)
         params.test_cases_db.insert_files(list_data)
 
-        # create user repo with dict_tree
-        params.model.make_user_repo(path2currFolder = params.path2currFolder, 
+        # create user repo with dict_tree and check indent
+        make_repo_status = params.model.make_user_repo(path2currFolder = params.path2currFolder, 
                                          folder_name = params.selected_folder_name)
-
+        print(make_repo_status)
         return JSONResponse(status_code=200,content='')
     
     except Exception as e:
@@ -197,8 +197,8 @@ async def generate_test_cases(params: Annotated[GenerateTasksDependencies,
 
 
 async def main_run():
-    config = uvicorn.Config("main:app", 
-    	port=8000, 
+    config = uvicorn.Config("main:app",
+    	port=8000,
     	log_level="info",
     	reload=True
     	)

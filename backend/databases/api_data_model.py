@@ -83,7 +83,7 @@ class GenerateTask_Testing:
     @computed_field
     @property
     def file_list(self)->List[str]:
-        return self.request_file_dict['request_file_dict']
+        return self.request_file_dict['file_list']
 
 
 @dataclass

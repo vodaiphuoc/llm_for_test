@@ -1,4 +1,4 @@
-from backend.llm.agent import Agent
+from llm.agent import Agent
 from databases.db import DB_handler
 from databases.api_data_model import UploadFilesBody_Testing, GenerateTask_Testing
 
@@ -8,7 +8,13 @@ from main import GenerateTasksDependencies, generate_test_cases
 import asyncio
 import pathlib
 
-def upload_files_api():
+
+import tabnanny
+
+
+def upload_files_api(implement_db = None, 
+                     test_cases_db = None, 
+                     model = None):
     path2currFolder = pathlib.WindowsPath('D:\Projects\Test_coverage_LLM\llm_for_test')
     folder_name = 'codes'
 
@@ -26,20 +32,25 @@ def upload_files_api():
                         UploadFilesBody_Testing(path2currDir = path2currFolder,
                             list_files = full_list_files,
                             selected_folder_name = folder_name,
-                            implement_db = DB_handler('db/implement.db'),
-                            test_cases_db = DB_handler('db/test_cases.db'),
-                            model = Agent())
+                            implement_db = DB_handler('db/implement.db') if implement_db is None else implement_db,
+                            test_cases_db = DB_handler('db/test_cases.db') if test_cases_db is None else test_cases_db,
+                            model = Agent() if model is None else model)
                         ))
     )
 
 
 def gen_testcases_api():
+    model = Agent()
+    test_cases_db = DB_handler('db/test_cases.db')
     gen_params = {
-        'model': Agent(),
-        'test_cases_db': DB_handler('db/test_cases.db'),
-        'request_file_dict': ['codesPATHSPLITimplementsPATHSPLITleet_code2.py']
+        'model': model,
+        'test_cases_db': test_cases_db,
+        'request_file_dict': {'file_list': ['codesPATHSPLITimplementsPATHSPLITleet_code2.py']}
     }
-
+    
+    upload_files_api(implement_db = DB_handler('db/implement.db'), 
+                     test_cases_db = test_cases_db, 
+                     model = model)
 
     asyncio.run(generate_test_cases(params= \
             GenerateTasksDependencies(\
@@ -64,14 +75,12 @@ def gen_testcases_api():
                 task_id='task-4', request_data=GenerateTask_Testing(**gen_params))
     ))
 
+
+
+
+
 if __name__ == '__main__':
-    gen_testcases_api()
-
-
-
-
-
-
+    upload_files_api()
 
 
 

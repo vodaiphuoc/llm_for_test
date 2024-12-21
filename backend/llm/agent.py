@@ -1,4 +1,5 @@
 from llm.model_hub import Gemini_Inference
+from llm.indent_checker import checker
 from databases.llm_data_model import Single_LLM_Output
 from databases.db import Dependencies_DB_Handler, DB_handler
 import glob
@@ -60,7 +61,7 @@ class PyTest_Environment(object):
 
 
     def make_user_repo(self, 
-                       path2currFolder: pathlib.WindowsPath, 
+                       path2currFolder: pathlib.WindowsPath,
                        folder_name:str
                        ):
         """this is called in main.py"""
@@ -68,6 +69,14 @@ class PyTest_Environment(object):
                         dst = self.temp_user_repo,
                         dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns('__pycache__'))
+
+        check_results = [(_dir,_result)
+                        for _dir in glob.glob(pathname = '**/*[!__].py',
+                                root_dir=self.temp_user_repo,
+                                recursive= True)
+                        if not isinstance(_result:=checker(self.temp_user_repo+'/'+_dir), bool)
+                    ]
+        return check_results
 
     def write_testcases_file(self, model_reponse: List[Dict[str,str]])->Union[str, List[str]]:
         """this is called by agent"""
@@ -152,6 +161,8 @@ class Agent(Gemini_Inference, PyTest_Environment):
         for single_prompt in batch_prompt:
             batch_reponse += self(input_prompt = single_prompt)
         return batch_reponse
+
+
 
     # task
     def prepare_input(self,
