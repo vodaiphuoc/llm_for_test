@@ -13,7 +13,7 @@ import tabnanny
 def upload_files_api(implement_db = None, 
                      test_cases_db = None, 
                      model = None):
-    path2currFolder = pathlib.WindowsPath('D:\Projects\Test_coverage_LLM\llm_for_test')
+    path2currFolder = pathlib.WindowsPath('D:\\Projects\\Test_coverage_LLM\\llm_for_test')
     folder_name = 'codes'
 
     full_list_files = [

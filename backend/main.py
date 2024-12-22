@@ -132,6 +132,8 @@ async def upload_files_router(params: Annotated[UploadFileDependencies,
         # insert to DB
         params.implement_db.insert_files(list_data)
         params.test_cases_db.insert_files(list_data)
+        print('done insert into 2 dbs')
+
 
         # create user repo with dict_tree and check indent
         indent_check, require_txt_check = params.model.make_user_repo(

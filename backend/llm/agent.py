@@ -71,6 +71,8 @@ class PyTest_Environment(object):
                         dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns('__pycache__'))
 
+        print('done make repo')
+
         indent_check_results = [
                         (folder_name+'PATHSPLIT'+re.sub(r'[\\,/]','PATHSPLIT', _file_path),
                          _result)
@@ -79,11 +81,14 @@ class PyTest_Environment(object):
                                 recursive= True)
                         if not isinstance(_result:=checker(self.temp_user_repo+'/'+_file_path), bool)
                     ]
+        print('done indent check')
+
         check_require_txt = [folder_name+'PATHSPLIT'+re.sub(r'[\\,/]','PATHSPLIT', _txt)
             for _txt in glob.glob(pathname = '**/requirements.txt', 
                                   root_dir=self.temp_user_repo,
                                   recursive= True)
         ]
+        print('done check .txt')
         return indent_check_results, check_require_txt
 
     def write_testcases_file(self, model_reponse: List[Dict[str,str]])->Union[str, List[str]]:

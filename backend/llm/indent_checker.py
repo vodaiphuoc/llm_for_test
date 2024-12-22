@@ -9,7 +9,7 @@ import sys
 import tokenize
 import re
 import itertools
-from typing import List
+from typing import List, Dict
 
 
 def file2entities(total_lines: List[str])->List[str]:
@@ -62,6 +62,8 @@ def entity_check(string_content:str):
             'line_number': e.lineno,
             'code_error': e.text
         }
+    except tokenize.TokenError as e:
+        pass
 
 
 def checker(file:str)->List[Dict[str,str]]:
@@ -70,6 +72,7 @@ def checker(file:str)->List[Dict[str,str]]:
     Args:
         - file: system path (can be relative) for open and read
     """
+    print('checker run: ',file)
     # get lines in file
     with open(file,'r') as fp:
         total_lines = fp.readlines()
@@ -82,6 +85,9 @@ def checker(file:str)->List[Dict[str,str]]:
     for ith, str_func in enumerate(segments):
         total_errors.append(entity_check(str_func))
 
-    return [ele for ele in total_errors if ele is not None]
+    print('checker end: ',file)
+
+    _filter_list = [ele for ele in total_errors if ele is not None]
+    return _filter_list if len(_filter_list) > 0 else True
 
 

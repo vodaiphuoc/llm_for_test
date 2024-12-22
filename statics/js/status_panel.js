@@ -101,7 +101,7 @@ function status_update_panel (task_object) {
 
 /** 
  * @param {dictionary} uploadFile_reponse :
- * 1) `Array[Array[str,dictionary]]` indent_check - 
+ * 1) `Array[Array[str, Array[Dict]]]` indent_check - 
  * 2) `Array[str]` require_txt_check - 
  */
 function UploadFilesStatus (uploadFile_reponse, parent_selector_name, selector_type) {
@@ -122,18 +122,34 @@ function UploadFilesStatus (uploadFile_reponse, parent_selector_name, selector_t
                         </div>`;
     $(`${selector_type}${parent_selector_name}`).html(status_panel);
 
+
     // append on condition
     if (indent_checklist.length > 0) {
         $(`ul#indent_check`).append(`<span class="sr-only">
-            Found ${indent_checklist.length} indent error${(indent_checklist.length === 1) ? "" : "s"} ${get_ng_icon()}
+            Found  indent issue in ${indent_checklist.length} file${(indent_checklist.length === 1) ? "" : "s"} ${get_ng_icon()}
             </span>`);
+        
         // append for each file
         indent_checklist.forEach((each_error, index)=>{
+            // unpack indent errors of each file
+
+            let li_error_list = "";
+            const arr_errors = indent_checklist[index][1];
+            arr_errors.forEach((err, _index)=>{
+                li_error_list += `<li>
+                    <span class="sr-only">Line: ${arr_errors[_index]['line_number']}</span>
+                    <span class="sr-only">Code: ${arr_errors[_index]['code_error']}</span>
+                </li>`;
+            })
+
             $(`ul#indent_check`).append(`<li class="list-group-item list-group-item-secondary" 
                                         id="indent-${index}">
                                         <ul>
-                                            <li><span class="sr-only">File: ${indent_checklist[index][0]}</span></li>
-                                            <li><span class="sr-only">Line number: ${indent_checklist[index][1]['line_number']}</span></li>
+                                            <li><span class="sr-only">File: ${indent_checklist[index][0].replate('PATHSPLIT','/')}</span></li>
+                                            <li id="error-list">
+                                                <span class="sr-only">Error list</span>
+                                                <ul>${li_error_list}</ul>
+                                            </li>
                                         </ul>
                                         </li>`);
         });
