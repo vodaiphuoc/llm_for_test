@@ -11,6 +11,7 @@ from uuid import uuid4
 from loguru import logger
 import json
 import pathlib
+import re
 
 class PyTest_Environment(object):
     def __init__(self,
@@ -70,13 +71,20 @@ class PyTest_Environment(object):
                         dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns('__pycache__'))
 
-        check_results = [(_dir,_result)
-                        for _dir in glob.glob(pathname = '**/*[!__].py',
+        indent_check_results = [
+                        (folder_name+'PATHSPLIT'+re.sub(r'[\\,/]','PATHSPLIT', _file_path),
+                         _result)
+                        for _file_path in glob.glob(pathname = '**/*[!__].py',
                                 root_dir=self.temp_user_repo,
                                 recursive= True)
-                        if not isinstance(_result:=checker(self.temp_user_repo+'/'+_dir), bool)
+                        if not isinstance(_result:=checker(self.temp_user_repo+'/'+_file_path), bool)
                     ]
-        return check_results
+        check_require_txt = [folder_name+'PATHSPLIT'+re.sub(r'[\\,/]','PATHSPLIT', _txt)
+            for _txt in glob.glob(pathname = '**/requirements.txt', 
+                                  root_dir=self.temp_user_repo,
+                                  recursive= True)
+        ]
+        return indent_check_results, check_require_txt
 
     def write_testcases_file(self, model_reponse: List[Dict[str,str]])->Union[str, List[str]]:
         """this is called by agent"""

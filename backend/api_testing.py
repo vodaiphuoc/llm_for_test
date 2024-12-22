@@ -7,8 +7,6 @@ from main import GenerateTasksDependencies, generate_test_cases
 
 import asyncio
 import pathlib
-
-
 import tabnanny
 
 
@@ -77,11 +75,8 @@ def gen_testcases_api():
 
 
 
-
-
 if __name__ == '__main__':
     upload_files_api()
-
 
 
 

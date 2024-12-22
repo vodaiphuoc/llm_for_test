@@ -62,6 +62,12 @@ function post_processing(respone_dict) {
     add_actions_on_tree_element();
 
     add_actions_on_file_py();
+
+    // Check open folder status: indent in files and .txt file
+    uploadFile_reponse = respone_dict['reponse_uploadFiles'];
+    console.log('reponse_uploadFiles',uploadFile_reponse);
+    UploadFilesStatus(uploadFile_reponse, "show_test_cases",".");
+
 }
 
 function py_file_trigger (file_name) {

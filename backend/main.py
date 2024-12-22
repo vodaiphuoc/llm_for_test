@@ -111,7 +111,20 @@ class UploadFileDependencies:
 async def upload_files_router(params: Annotated[UploadFileDependencies, 
                                                 Depends(UploadFileDependencies)]
                             ):
-    """Receive post request from expressjs"""
+    """Receive post request from expressjs
+
+    Returns:
+    A dictionary with two keys: `indent_check` and `require_txt_check`:
+        - `indent_check`: List[Tupe[file_path (str), indent_errors (List[Dict])]]
+            + lenght of `indent_check` equals the number of select files
+            + file_path (str): relative file with splitters are replaced with `PATHSPLIT`
+            + `indent_errors` (List[Dict]): List of indent error at different position
+            each element has two keys: 
+                - line_number: the error line
+                - code_error (str): the function is error
+
+        - `require_txt_check`: List[str] the number of requirements.txt files found
+    """
     try:
         list_data = File_List(list_file = [Script_File(file_path = params.path2currFolder / dir,
                                                        relative_file_path = dir) 
@@ -121,10 +134,16 @@ async def upload_files_router(params: Annotated[UploadFileDependencies,
         params.test_cases_db.insert_files(list_data)
 
         # create user repo with dict_tree and check indent
-        make_repo_status = params.model.make_user_repo(path2currFolder = params.path2currFolder, 
-                                         folder_name = params.selected_folder_name)
-        print(make_repo_status)
-        return JSONResponse(status_code=200,content='')
+        indent_check, require_txt_check = params.model.make_user_repo(
+                                            path2currFolder = params.path2currFolder, 
+                                            folder_name = params.selected_folder_name)
+        print(indent_check)
+        print(require_txt_check)
+        return JSONResponse(status_code=200,
+                            content={
+            'indent_check':indent_check, 
+            'require_txt_check':require_txt_check
+        })
     
     except Exception as e:
         print(e)

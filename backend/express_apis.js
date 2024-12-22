@@ -69,7 +69,7 @@ function send_directories (folders_as_tree, path2currentDir) {
         "Content-Type": "application/json",
     });
 
-    fetch('http://127.0.0.1:8000/upload_files', {
+    return fetch('http://127.0.0.1:8000/upload_files', {
         method: 'POST',
         body: JSON.stringify({
             'dict_tree': folders_as_tree,
@@ -78,8 +78,11 @@ function send_directories (folders_as_tree, path2currentDir) {
         mode: 'cors',
         headers: myHeaders
     })
-    .catch((error)=>{
-        console.log(error);
+    .then((respone)=>{
+        return respone.json()
+            .then((reponse_data)=>{
+                return reponse_data
+            });
     });
 }
 
@@ -138,18 +141,28 @@ function start_express () {
 
             // convert list dir of files to dictionary
             const folder_tree = get_folder_tree(send_file_list);
-
+            return [folder_tree, path2currentDir, currentFolder]
+        })
+        .then(([folder_tree, path2currentDir, currentFolder])=>{
             // send dict tree + path to current 
             // selected folder to python server
-            send_directories(folder_tree, path2currentDir);
-
-            // send dict tree back to front-end
-            res.json({
-                'folder_tree':folder_tree,
-                'path2currentDir':path2currentDir,
-                'currentFolder': currentFolder
+            send_directories(folder_tree, path2currentDir)
+            .then((reponse_uploadFiles)=>{
+                return [reponse_uploadFiles, folder_tree, path2currentDir, currentFolder] 
+            })
+            .then(([reponse_uploadFiles, folder_tree, path2currentDir, currentFolder] )=>{
+                console.log(reponse_uploadFiles);
+                // send dict tree back to front-end
+                res.json({
+                    'reponse_uploadFiles': reponse_uploadFiles,
+                    'folder_tree':folder_tree,
+                    'path2currentDir':path2currentDir,
+                    'currentFolder': currentFolder
+                });
             });
-        });
+            
+        })
+        
     });
 
     var server = exp_app.listen(5000, function () {
