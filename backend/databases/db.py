@@ -10,24 +10,29 @@ DISPLAY_PATTERNS = namedtuple("DISPLAY_PATTERNS",
         ['detect_pattern', 'line_tab','non_line_tab','row_pattern','final_pattern'])
 
 total_pattern = DISPLAY_PATTERNS('^\s+', 
-    '<div class="tab-spacing">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>',
-    '<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>',
+    '<div class="tab-spacing">&nbsp;&nbsp;&nbsp;&nbsp;</div>',
+    '<div>&nbsp;&nbsp;&nbsp;&nbsp;</div>',
 """
 <tr>
 <td><p class="line-number">{line_number}</p></td>
 <td>
     {tab_content}
-    <pre><code class="language-python">{code_content}</code>
+    <pre {stype_for_error}><code class="language-python">{code_content}</code>
     </pre>
 </td>
 </tr>
 """,
-'<div><table>{rows}</table></div><script>hljs.highlightAll();</script>'
+'<div><table>{rows}</table></div>'
 )
+# <script>hljs.highlightAll();</script>
 
 def render_content(line_with_errors: List[Dict[str,Union[str,int, bool]]])->str:
     rows_content = ""
-    for line, line_number, error in line_with_errors:
+    for line_dict in line_with_errors:
+        line = line_dict['line']
+        line_number = line_dict['line_number']
+        error = line_dict['error']
+
         code_content = "".join(re.split(total_pattern.detect_pattern, line))
 
         tab_match = re.match(total_pattern.detect_pattern, line)
@@ -50,9 +55,9 @@ def render_content(line_with_errors: List[Dict[str,Union[str,int, bool]]])->str:
         else:
             tab_content = "" 
 
-        print(code_content)
         rows_content += total_pattern.row_pattern.format(line_number = line_number, 
                                                         tab_content = tab_content,
+                                                        stype_for_error = 'style="background-color: red;"' if error else '',
                                                         code_content = code_content)
     return total_pattern.final_pattern.format(rows = rows_content)    
 
@@ -95,19 +100,38 @@ class DB_handler(object):
                 """
                     INSERT INTO user_files (SearchFileUrl, RepoFileURL, impl_RawContent, moduleImport) VALUES (?,?,?,?);
                 """
-
-                self.connection.executemany(prompt, [
-                                            (ele.search_file_path, 
+                all_file_error_count = 0
+                unpack_data = []
+                for ele in files.list_file:
+                    if self.db_type == "implement":
+                        line_with_error,  total_errors = ele.file_content_with_error
+                        unpack_data.append((ele.search_file_path, 
                                              ele.file_content,
-                                             render_content(ele.file_content_with_error)) 
-                                             if self.db_type == "implement" else \
-                                             (ele.search_file_path,
+                                             render_content(line_with_error)))
+                        all_file_error_count += total_errors
+                    else:
+                        unpack_data.append((ele.search_file_path,
                                               ele.relative_copied_file_path,
                                               ele.file_content,
-                                              ele.import_module)
-                                            for ele in files.list_file
-                                            ]
-                                        )
+                                              ele.import_module))
+                
+                self.connection.executemany(prompt, unpack_data)
+
+                if self.db_type == 'implement':
+                    return all_file_error_count
+
+                # self.connection.executemany(prompt, [
+                #                             (ele.search_file_path, 
+                #                              ele.file_content,
+                #                              render_content(ele.file_content_with_error)) 
+                #                              if self.db_type == "implement" else \
+                #                              (ele.search_file_path,
+                #                               ele.relative_copied_file_path,
+                #                               ele.file_content,
+                #                               ele.import_module)
+                #                             for ele in files.list_file
+                #                             ]
+                #                         )
         except Exception as error:
             print(f"Cannot peform insert many files, db type: {self.db_type}, ", error)
 

@@ -119,7 +119,8 @@ class Script_File:
     @property
     def file_content_with_error(self)->List[Dict[str,str]]:
         """Read file from local machine"""
-        return IndentChecker.check(self.file_path)
+        line_with_error, total_errors = IndentChecker.check(self.file_path)
+        return line_with_error, total_errors
     
 
 

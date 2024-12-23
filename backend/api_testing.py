@@ -7,8 +7,6 @@ from main import GenerateTasksDependencies, generate_test_cases
 
 import asyncio
 import pathlib
-import tabnanny
-
 
 def upload_files_api(implement_db = None, 
                      test_cases_db = None, 
@@ -17,7 +15,7 @@ def upload_files_api(implement_db = None,
     folder_name = 'codes'
 
     full_list_files = [
-        'codes/implements/leet_code.py', 
+        'codes/implements/leet_code_new.py', 
         'codes/implements/leet_code2.py', 
         'codes/implements/LLM.py', 
         'codes/implements/model_llm.py', 

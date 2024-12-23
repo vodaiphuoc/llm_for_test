@@ -130,7 +130,7 @@ async def upload_files_router(params: Annotated[UploadFileDependencies,
                                                        relative_file_path = dir) 
                                             for dir in params.list_files])
         # insert to DB
-        params.implement_db.insert_files(list_data)
+        all_file_error_count = params.implement_db.insert_files(list_data)
         params.test_cases_db.insert_files(list_data)
         print('done insert into 2 dbs')
 
@@ -143,7 +143,7 @@ async def upload_files_router(params: Annotated[UploadFileDependencies,
         print(require_txt_check)
         return JSONResponse(status_code=200,
                             content={
-            'indent_check':"",
+            'indent_check': all_file_error_count,
             'require_txt_check':require_txt_check
         })
     
