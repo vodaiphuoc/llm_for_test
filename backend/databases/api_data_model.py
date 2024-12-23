@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any, Union
 import typing_extensions
 import re
 import os
+from llm.indent_checker import IndentChecker
 
 @dataclass
 class UploadFilesBody_Testing():
@@ -113,6 +114,14 @@ class Script_File:
         """Read file from local machine"""
         with open(self.file_path, 'r') as f:
             return f.read()
+    
+    @computed_field
+    @property
+    def file_content_with_error(self)->List[Dict[str,str]]:
+        """Read file from local machine"""
+        return IndentChecker.check(self.file_path)
+    
+
 
 @dataclass
 class File_List:

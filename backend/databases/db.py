@@ -25,9 +25,9 @@ total_pattern = DISPLAY_PATTERNS('^\s+',
 '<div><table>{rows}</table></div><script>hljs.highlightAll();</script>'
 )
 
-def render_content(file_content:str)->str:
+def render_content(line_with_errors: List[Dict[str,Union[str,int, bool]]])->str:
     rows_content = ""
-    for ith, line in enumerate(file_content.split('\n')):
+    for line, line_number, error in line_with_errors:
         code_content = "".join(re.split(total_pattern.detect_pattern, line))
 
         tab_match = re.match(total_pattern.detect_pattern, line)
@@ -50,7 +50,8 @@ def render_content(file_content:str)->str:
         else:
             tab_content = "" 
 
-        rows_content += total_pattern.row_pattern.format(line_number = ith+1, 
+        print(code_content)
+        rows_content += total_pattern.row_pattern.format(line_number = line_number, 
                                                         tab_content = tab_content,
                                                         code_content = code_content)
     return total_pattern.final_pattern.format(rows = rows_content)    
@@ -98,7 +99,7 @@ class DB_handler(object):
                 self.connection.executemany(prompt, [
                                             (ele.search_file_path, 
                                              ele.file_content,
-                                             render_content(ele.file_content)) 
+                                             render_content(ele.file_content_with_error)) 
                                              if self.db_type == "implement" else \
                                              (ele.search_file_path,
                                               ele.relative_copied_file_path,

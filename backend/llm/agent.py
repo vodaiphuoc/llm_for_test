@@ -1,5 +1,4 @@
 from llm.model_hub import Gemini_Inference
-from llm.indent_checker import checker
 from databases.llm_data_model import Single_LLM_Output
 from databases.db import Dependencies_DB_Handler, DB_handler
 import glob
@@ -73,15 +72,7 @@ class PyTest_Environment(object):
 
         print('done make repo')
 
-        indent_check_results = [
-                        (folder_name+'PATHSPLIT'+re.sub(r'[\\,/]','PATHSPLIT', _file_path),
-                         _result)
-                        for _file_path in glob.glob(pathname = '**/*[!__].py',
-                                root_dir=self.temp_user_repo,
-                                recursive= True)
-                        if not isinstance(_result:=checker(self.temp_user_repo+'/'+_file_path), bool)
-                    ]
-        print('done indent check')
+        
 
         check_require_txt = [folder_name+'PATHSPLIT'+re.sub(r'[\\,/]','PATHSPLIT', _txt)
             for _txt in glob.glob(pathname = '**/requirements.txt', 
@@ -89,7 +80,7 @@ class PyTest_Environment(object):
                                   recursive= True)
         ]
         print('done check .txt')
-        return indent_check_results, check_require_txt
+        return check_require_txt
 
     def write_testcases_file(self, model_reponse: List[Dict[str,str]])->Union[str, List[str]]:
         """this is called by agent"""

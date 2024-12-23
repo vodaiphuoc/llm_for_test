@@ -136,14 +136,14 @@ async def upload_files_router(params: Annotated[UploadFileDependencies,
 
 
         # create user repo with dict_tree and check indent
-        indent_check, require_txt_check = params.model.make_user_repo(
+        require_txt_check = params.model.make_user_repo(
                                             path2currFolder = params.path2currFolder, 
                                             folder_name = params.selected_folder_name)
-        print(indent_check)
+        
         print(require_txt_check)
         return JSONResponse(status_code=200,
                             content={
-            'indent_check':indent_check, 
+            'indent_check':"",
             'require_txt_check':require_txt_check
         })
     
