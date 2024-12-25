@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
     # init engine here
     app.implement_db = DB_handler('db/implement.db')
     app.test_cases_db = DB_handler('db/test_cases.db')
-    app.model = Agent()
+    app.model = Agent(app.test_cases_db)
     
     yield
     app.implement_db.close()
@@ -129,10 +129,18 @@ async def upload_files_router(params: Annotated[UploadFileDependencies,
         list_data = File_List(list_file = [Script_File(file_path = params.path2currFolder / dir,
                                                        relative_file_path = dir) 
                                             for dir in params.list_files])
+        
+        (all_file_error_count, unpack_data, unpack_test_data, meta_data) = \
+            params.implement_db.prepare_input(list_data)
+
         # insert to DB
-        all_file_error_count = params.implement_db.insert_files(list_data)
-        params.test_cases_db.insert_files(list_data)
-        print('done insert into 2 dbs')
+        params.implement_db.insert_files(unpack_data)
+        print('done insert into implement_db')
+        
+        # if all_file_error_count == 0:
+        params.test_cases_db.insert_files(unpack_data = unpack_test_data, 
+                                            meta_data = meta_data)
+        print('done insert into test_cases_db')
 
 
         # create user repo with dict_tree and check indent
@@ -183,6 +191,8 @@ class GenerateTasksDependencies:
         else:
             # testing branch
             self.model = request_data.model
+            
+            self.model.run_improve = request_data.run_improve
             self.test_cases_db = request_data.test_cases_db
             self.request_files = request_data.file_list
             self.task_id = task_id

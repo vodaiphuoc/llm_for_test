@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any, Union
 import typing_extensions
 import re
 import os
-from llm.indent_checker import IndentChecker
+from databases.indent_checker import IndentChecker
 
 @dataclass
 class UploadFilesBody_Testing():
@@ -78,6 +78,7 @@ class GenerateTask_Testing:
         - request_file_dict (`Dict[str,List[str]]`): Relative path from user folder to files.
     """
     model: Any
+    run_improve: Any
     test_cases_db: Any
     request_file_dict: Dict[str,List[str]] = Field(examples=[{'file_list': ['llm_for_testPATHSPLITimplementsPATHSPLITleet_code.py']}])
 
@@ -117,10 +118,9 @@ class Script_File:
     
     @computed_field
     @property
-    def file_content_with_error(self)->List[Dict[str,str]]:
+    def file_content_with_error(self)->Dict[str,str]:
         """Read file from local machine"""
-        line_with_error, total_errors = IndentChecker.check(self.file_path)
-        return line_with_error, total_errors
+        return IndentChecker.check(self.file_path, self.search_file_path)
     
 
 

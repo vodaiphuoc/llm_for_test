@@ -72,7 +72,37 @@ class DB_handler(object):
         except sqlite3.Error as error:
             print(f"Cannot connect to {db_url} db, ", error)
 
-    def insert_files(self, files: File_List)->None:
+    @staticmethod
+    def prepare_input(files: File_List):
+        all_file_error_count = 0
+        
+        unpack_data = []
+        unpack_test_data = []
+        meta_data = []
+
+        for ele in files.list_file:
+            indent_result = ele.file_content_with_error
+
+            _search_path = ele.search_file_path
+            _content = ele.file_content
+
+            unpack_data.append((_search_path, 
+                                _content,
+                                render_content(indent_result['line_with_error'])
+                                ))
+            all_file_error_count += indent_result['total_error']
+                
+            unpack_test_data.append((_search_path,
+                                    ele.relative_copied_file_path,
+                                    _content,
+                                    ele.import_module))
+            
+            if indent_result['total_error'] == 0:
+                meta_data.extend(indent_result['metadata'])
+
+        return all_file_error_count, unpack_data, unpack_test_data, meta_data
+
+    def insert_files(self, unpack_data: List[tuple], meta_data = None)->None:
         """
         - Delete old files when user browse new folder
         - Create `user_files` table for new browse folder
@@ -84,14 +114,20 @@ class DB_handler(object):
                 del_prompt = """DROP TABLE IF EXISTS user_files;"""
                 self.connection.execute(del_prompt)
 
-                create_prompt = """
-                CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RawContent TEXT, RenderContent TEXT);
-                """ if self.db_type == "implement" else \
-                """
-                CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RepoFileURL TEXT, impl_RawContent TEXT, moduleImport TEXT, test_RawContent TEXT , RenderContent TEXT);
-                """
-
-                self.connection.execute(create_prompt)
+                if self.db_type == "implement":
+                    create_prompt = """
+CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RawContent TEXT, RenderContent TEXT);
+""" 
+                    self.connection.execute(create_prompt)
+                else:
+                    create_prompt = """
+CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RepoFileURL TEXT, impl_RawContent TEXT, moduleImport TEXT, test_RawContent TEXT , RenderContent TEXT);
+"""
+                    create_metadata = """
+CREATE TABLE IF NOT EXISTS metadata (id INT PRIMARY KEY, SearchFileUrl TEXT, segment_type TEXT, class_name TEXT, function_name TEXT, type TEXT , start_line TEXT, end_line INT, body_content TEXT);
+"""
+                    self.connection.execute(create_prompt)
+                    self.connection.execute(create_metadata)
             
             with self.connection:
                 prompt = """
@@ -100,38 +136,15 @@ class DB_handler(object):
                 """
                     INSERT INTO user_files (SearchFileUrl, RepoFileURL, impl_RawContent, moduleImport) VALUES (?,?,?,?);
                 """
-                all_file_error_count = 0
-                unpack_data = []
-                for ele in files.list_file:
-                    if self.db_type == "implement":
-                        line_with_error,  total_errors = ele.file_content_with_error
-                        unpack_data.append((ele.search_file_path, 
-                                             ele.file_content,
-                                             render_content(line_with_error)))
-                        all_file_error_count += total_errors
-                    else:
-                        unpack_data.append((ele.search_file_path,
-                                              ele.relative_copied_file_path,
-                                              ele.file_content,
-                                              ele.import_module))
-                
                 self.connection.executemany(prompt, unpack_data)
+                
+                if self.db_type == 'test_cases':
+                    sql = "INSERT INTO metadata" +\
+                                "(SearchFileUrl, segment_type, class_name, function_name, type, start_line, end_line, body_content)" +\
+                                "VALUES (?,?,?,?,?,?,?,?);"
+                    self.connection.executemany(sql,meta_data)
+                        
 
-                if self.db_type == 'implement':
-                    return all_file_error_count
-
-                # self.connection.executemany(prompt, [
-                #                             (ele.search_file_path, 
-                #                              ele.file_content,
-                #                              render_content(ele.file_content_with_error)) 
-                #                              if self.db_type == "implement" else \
-                #                              (ele.search_file_path,
-                #                               ele.relative_copied_file_path,
-                #                               ele.file_content,
-                #                               ele.import_module)
-                #                             for ele in files.list_file
-                #                             ]
-                #                         )
         except Exception as error:
             print(f"Cannot peform insert many files, db type: {self.db_type}, ", error)
 

@@ -11,7 +11,8 @@
     {"import_pkg_name": "bs4","PyPi_index":"beautifulsoup4", "version":""},
     {"import_pkg_name": "fastapi","PyPi_index":"fastapi", "version":""},
     {"import_pkg_name": "sortedcontainers","PyPi_index": "sortedcontainers", "version":""},
-    {"import_pkg_name": "pytest","PyPi_index": "pytest", "version":""}
+    {"import_pkg_name": "pytest","PyPi_index": "pytest", "version":""},
+    {"import_pkg_name": "slipcover","PyPi_index": "slipcover", "version":""}
 ]
 
 

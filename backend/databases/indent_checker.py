@@ -12,16 +12,65 @@ import itertools
 from typing import List, Dict, Literal, Union
 import ast
 from copy import deepcopy
+from collections import namedtuple
 
-class Segment(object):
+segment2db = namedtuple('segment2db',
+                        ['search_url','segment_type','class_name','function_name','type','start_line','end_line','body_content'])
+
+def get_meta_data(total_lines:int, search_url)->List[segment2db]:
+    
+    file_content = "".join(total_lines)
+    structure = ast.parse(source= file_content, mode='exec')
+
+    metadata = []
+
+    try:
+        for element in structure.body:
+            if isinstance(element, ast.FunctionDef):
+                metadata.append(segment2db(search_url = search_url,
+                                            segment_type = 'function', 
+                                            class_name=  '', 
+                                            function_name = element.name, 
+                                            type = 'function', 
+                                            start_line =  element.lineno, 
+                                            end_line = element.end_lineno, 
+                                            body_content = "".join(total_lines[element.lineno: element.end_lineno])
+                                        ))
+
+            elif isinstance(element, ast.ClassDef):
+                methods = [segment2db(search_url = search_url,
+                                    segment_type = 'class', 
+                                    class_name= element.name, 
+                                    function_name = method_data.name, 
+                                    type = 'method', 
+                                    start_line =  method_data.lineno, 
+                                    end_line = method_data.end_lineno, 
+                                    body_content = "".join(total_lines[method_data.lineno: method_data.end_lineno])
+                                    )
+                    for method_data in element.body
+                    if isinstance(method_data, ast.FunctionDef)
+                    ]
+                metadata.extend(methods)
+            else:
+                continue
+    except Exception as e:
+        print(e)
+        print(search_url)
+        print(type(element))
+    
+    return metadata
+
+class Segment():
     """Segment object can be used 
     represent errors for classes (contains __init and other methods) 
     or functions.
     """
     def __init__(self, 
                  code_lines: List[str], 
-                 start_line:int
+                 start_line:int,
+                 end_line:int
                  ) -> None:
+        super().__init__()
 
         # search word `class` in each line
         class_def_line_ith = [_ith for _ith, _line in enumerate(code_lines) 
@@ -35,10 +84,12 @@ class Segment(object):
 
         self.code_lines = code_lines
         self.start_line = start_line
+        self.end_line = end_line
 
         if self.segment_type == 'class':
 
             method_params = IndentChecker.file2entities(self.code_lines[class_def_line_ith[0]+1:], function_type='method')
+            self.total_method_params = method_params
 
             if re.search(r"def","".join([str(ele['code_lines']) for ele in method_params])) is None:
                 self._is_sepcial_class = True
@@ -185,23 +236,16 @@ class IndentChecker(object):
                         if (_index:= pattern_function(line, ith,total_lines[ith-1], ith-1)) is not None
         ]
         
-        # drop
-        drop_iths = []
-        # for ith in range(len(split_lines_ids)-1):
-        #     if split_lines_ids[ith] + 1 == split_lines_ids[ith+1]:
-        #         drop_iths.append(ith+1)
-
-        # finall split idx, plus with final index before make pairwise
-        new_split_ids = [0] + [idx for ith, idx in enumerate(split_lines_ids) if ith not in drop_iths] + [len(total_lines)]
-
+        new_split_ids = [0] + split_lines_ids + [len(total_lines)]
 
         # segmentation
         segments_params = []
         for start_idx, end_idx in itertools.pairwise(new_split_ids):
-            if len(total_lines[start_idx: end_idx]) > 0:
+            if len(_code_lines:=total_lines[start_idx: end_idx]) > 0:
                 seg_params = {
-                        "code_lines": total_lines[start_idx: end_idx],
-                        "start_line": start_idx+1
+                        "code_lines": _code_lines,
+                        "start_line": start_idx+1,
+                        "end_line": start_idx+1+len(_code_lines),
                     }
                 segments_params.append(seg_params)
             else:
@@ -210,7 +254,7 @@ class IndentChecker(object):
         return segments_params
     
     @staticmethod
-    def check(file:str)->List[Dict[str,str]]:
+    def check(file:str, search_url:str)->List[Dict[str,str]]:
         """
         Function to check indentation of python code
         Args:
@@ -238,12 +282,28 @@ class IndentChecker(object):
         total_errors = {}
         for seg in segs_list:
             total_errors.update(seg.get_error_dict())
+
+        if len(total_errors) > 0:
+            return {
+                'line_with_error': [{
+                        'line': line,
+                        'line_number': ith+1,
+                        'error': True if total_errors.get(ith+1) is not None else False
+                        }
+                    for ith, line in enumerate(total_lines)
+                    ],
+                'total_error':len(total_errors)
+            }
         
-        # print('in indent checker:',total_errors)
-        return [{
-            'line': line,
-            'line_number': ith+1,
-            'error': True if total_errors.get(ith+1) is not None else False
-        }
-        for ith, line in enumerate(total_lines)
-        ], len(total_errors)
+        else:
+            return {
+                'line_with_error': [{
+                        'line': line,
+                        'line_number': ith+1,
+                        'error': True if total_errors.get(ith+1) is not None else False
+                        }
+                    for ith, line in enumerate(total_lines)
+                    ],
+                'total_error':len(total_errors),
+                'metadata':get_meta_data(total_lines, search_url)
+            }

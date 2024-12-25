@@ -4,8 +4,31 @@ from typing import Literal, List, Dict, Union
 from dotenv import load_dotenv
 import google.generativeai as genai
 
+class Instructions(object):
+    initial_instruct = f"""
+- Now, give output with below tasks:
+"""
+    improve_instruct = f"""
+- Now, give output to improve the covarage value of each case and reduce above missing lines:
+"""
 
-class Gemini_Prompts(object):
+class Gemini_Prompts(Instructions):
+
+    prev_cov_params = f"""
+    ** Your previous testcases
+    {{prev_testcases}}
+    ** previous covarage value
+    {{prev_cov}}
+    ** missing lines in target functions/classes
+    {{missing_lines_code}}
+    """
+
+    improve_prompt = f"""
+        - Your previous testcase code got below covarage values for each testcase where 
+        some missing lines in target functions/classes which are not executed
+        when runing testcase with Pytest.
+        {{prev_cov_params}}
+        """
 
     prompt = f"""
         - Using pytest package in Python, write a testcase for the following Python file which include
@@ -24,7 +47,9 @@ class Gemini_Prompts(object):
         **Example 3
         {{example3}}
 
-        - Now, give output with below tasks:
+        {{cov_improve}}
+
+        - {{final_instruction}}
         {{total_content}}
         """
 
@@ -250,6 +275,8 @@ class Gemini_Inference(Gemini_Prompts):
         raw_prompt = self.prompt.format(example1 = self.example1,
                                           example2 = self.example2, 
                                           example3 = self.example3,
+                                          cov_improve = "",
+                                          final_instruction = "",
                                           total_content = "")
         # print("total based tokens: ", self.model.count_tokens(raw_prompt))
         # print("total cached tokens: ", self.model.count_tokens(raw_prompt).cached_content_token_count)
@@ -260,11 +287,30 @@ class Gemini_Inference(Gemini_Prompts):
         print('self.context_length: ', self.context_length)
 
     def __call__(self,
-                 input_prompt: Union[str, List[str]]
+                 input_prompt: Union[str, List[str]],
+                 use_improve:bool = False,
+                 cov_data: dict = None,
                  )->Union[str, List[str]]:
+        """
+        cov_data = {
+            'prev_testcases': ..., 
+            'prev_cov': ..., 
+            'missing_lines_code': ..., 
+        }
+        """
+        
+        if use_improve:
+            assert cov_data is not None
+            cov_improve = self.improve_prompt.format(**cov_data)
+        else:
+            cov_improve = ""
+
         total_prompt = self.prompt.format(example1 = self.example1,
                                           example2 = self.example2, 
                                           example3 = self.example3,
+                                          cov_improve = cov_improve,
+                                          final_instruction = self.initial_instruct if not \
+                                            use_improve else self.initial_instruct,
                                           total_content = input_prompt)
         final_prompt = self.gemma_prompt.format(input_prompt = total_prompt)
         

@@ -15,6 +15,8 @@ def upload_files_api(implement_db = None,
     folder_name = 'codes'
 
     full_list_files = [
+        'codes/implements/correct_implement.py', 
+        'codes/implements/implement_pattern.py', 
         'codes/implements/leet_code_new.py', 
         'codes/implements/leet_code2.py', 
         'codes/implements/LLM.py', 
@@ -24,24 +26,31 @@ def upload_files_api(implement_db = None,
         'codes/requirements.txt'
     ]
 
+    test_cases_db = DB_handler('db/test_cases.db') if test_cases_db is None else test_cases_db
+    model = Agent(test_cases_db) if model is None else model
+
     asyncio.run(upload_files_router(params= UploadFileDependencies(request_data = \
                         UploadFilesBody_Testing(path2currDir = path2currFolder,
                             list_files = full_list_files,
                             selected_folder_name = folder_name,
                             implement_db = DB_handler('db/implement.db') if implement_db is None else implement_db,
-                            test_cases_db = DB_handler('db/test_cases.db') if test_cases_db is None else test_cases_db,
-                            model = Agent() if model is None else model)
+                            test_cases_db = test_cases_db,
+                            model = model)
                         ))
     )
 
 
 def gen_testcases_api():
-    model = Agent()
+    
     test_cases_db = DB_handler('db/test_cases.db')
+    model = Agent(test_cases_db)
+    
+    
     gen_params = {
         'model': model,
+        'run_improve': False,
         'test_cases_db': test_cases_db,
-        'request_file_dict': {'file_list': ['codesPATHSPLITimplementsPATHSPLITleet_code2.py']}
+        'request_file_dict': {'file_list': ['codesPATHSPLITimplementsPATHSPLITcorrect_implement.py']}
     }
     
     upload_files_api(implement_db = DB_handler('db/implement.db'), 
@@ -53,28 +62,31 @@ def gen_testcases_api():
                 task_id='task-1', request_data=GenerateTask_Testing(**gen_params))
     ))
 
-
-    asyncio.run(generate_test_cases(params= \
-            GenerateTasksDependencies(\
-                task_id='task-2', request_data=GenerateTask_Testing(**gen_params))
-    ))
-
-
-    asyncio.run(generate_test_cases(params= \
-            GenerateTasksDependencies(\
-                task_id='task-3', request_data=GenerateTask_Testing(**gen_params))
-    ))
+    for run_improve in [False, True]:
+        gen_params['run_improve'] = run_improve
+        
+        asyncio.run(generate_test_cases(params= \
+                GenerateTasksDependencies(\
+                    task_id='task-2', request_data=GenerateTask_Testing(**gen_params))
+        ))
 
 
-    asyncio.run(generate_test_cases(params= \
-            GenerateTasksDependencies(\
-                task_id='task-4', request_data=GenerateTask_Testing(**gen_params))
-    ))
+        asyncio.run(generate_test_cases(params= \
+                GenerateTasksDependencies(\
+                    task_id='task-3', request_data=GenerateTask_Testing(**gen_params))
+        ))
+
+
+        asyncio.run(generate_test_cases(params= \
+                GenerateTasksDependencies(\
+                    task_id='task-4', request_data=GenerateTask_Testing(**gen_params))
+        ))
 
 
 
 if __name__ == '__main__':
     upload_files_api()
+    # gen_testcases_api()
 
 
 

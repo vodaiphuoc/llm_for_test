@@ -71,9 +71,6 @@ class PyTest_Environment(object):
                         ignore=shutil.ignore_patterns('__pycache__'))
 
         print('done make repo')
-
-        
-
         check_require_txt = [folder_name+'PATHSPLIT'+re.sub(r'[\\,/]','PATHSPLIT', _txt)
             for _txt in glob.glob(pathname = '**/requirements.txt', 
                                   root_dir=self.temp_user_repo,
@@ -100,7 +97,16 @@ class PyTest_Environment(object):
         duplicated_dependencies = []
         for each_out in list_llm_output:
             duplicated_dependencies.extend(each_out.get_dependencies())
-        return file_name, list(set(duplicated_dependencies))
+
+        # save target function
+        target_funcs = []
+        for each_out in list_llm_output:
+            cases = [(_case['target'], _case['test_cases_codes']) 
+                     for _case in each_out.test_cases]
+            
+            target_funcs.append({each_out.original_file_path: cases})
+
+        return file_name, list(set(duplicated_dependencies)), target_funcs
 
     def check_install_dependencies(self, dependencies_list: List[str]):
         # get not installed packages
@@ -123,12 +129,19 @@ class PyTest_Environment(object):
             return {'package to update':'No package to update'}
 
     def run_make_report(self,
-                        test_cases_file_path:str
+                        test_cases_file_path:str,
+                        run_improve:bool
                     ):
         """this is called by agent"""
+
+        # python -m slipcover --json --out slipcover.json -m pytest db\pytest_execute_env\.....py
+        slip_cover_output_format = '_slipcover_improve.json' if run_improve else '_slipcover.json'
+        slip_cover_output = self.pytest_report_dir.replace('.xml',slip_cover_output_format)
         try:
             # execute pytest under artificial venv
-            pytest_cmd = f'{self.python_env_path} -m pytest {self.log_dir}/{test_cases_file_path} \
+            pytest_cmd = f'{self.python_env_path} -m slipcover --json \
+                        --out {slip_cover_output} \
+                        -m pytest {self.log_dir}/{test_cases_file_path} \
                         --junit-xml={self.pytest_report_dir}'
             print(pytest_cmd)
             os.system(command= pytest_cmd)
@@ -148,8 +161,9 @@ class Agent(Gemini_Inference, PyTest_Environment):
 **Functions:
 {{file_content}}
 """
-    def __init__(self) -> None:
+    def __init__(self, test_cases_db: DB_handler) -> None:
         super().__init__()
+        self.test_cases_db = test_cases_db
 
         # task results will be assigned here
         self.data_repsonse_task = {
@@ -158,15 +172,65 @@ class Agent(Gemini_Inference, PyTest_Environment):
             'check_dependencies': None,
             'execute_pytest': None
         }
+        self.run_improve = False
+
+    def get_prev_cov_result(self):
+        """
+        Only run with `self.run_improve` is set to True
+        
+        Returns:
+            cov_data = {
+                'prev_testcases': ..., 
+                'prev_cov': ..., 
+                'missing_lines_code': ..., 
+        }
+        """
+        print('===================prepare for run imporving...')
+        assert self.data_repsonse_task['target_funcs'] is not None
+        assert self.data_repsonse_task['check_dependencies'] is not None
+        
+
+        with open(self.log_dir+'/report_slipcover.json','r') as f:
+            cov = json.load(f)
+
+        cov_files = {k.replace('\\','/'):v for k,v in cov['files'].items()}
+
+        # params for target function
+        prev_for_improve = []
+        for module_dict  in self.data_repsonse_task['target_funcs']:
+            for module_path, test_calse_list in module_dict.items():
+
+                project_dir2module_path = self.log_dir +'/' + module_path
+                splicover_params = cov_files[project_dir2module_path]
+
+                original_content = self.test_cases_db.get_content_from_url(url = module_path.replace('/','PATHSPLIT').replace('user_repo',''),
+                                                            content_type='impl_RawContent')[1] #<-- select index 1
+
+                miss_code = "".join([_line for ith, _line in enumerate(original_content.split('\n')) 
+                                if ith+1 in splicover_params["missing_lines"]
+                                ])
+                print('miss code:', miss_code)
+                for (target_func, test_cases) in test_calse_list:
+                    print('target: ', miss_code)
+                    if target_func in miss_code:
+                        prev_for_improve.append({
+                            'prev_testcases': test_cases, 
+                            'prev_cov': splicover_params["summary"]["percent_covered"], 
+                            'missing_lines_code': miss_code, 
+                        })
+        
+        print('prev_for_improve: ',prev_for_improve)
+        return prev_for_improve
 
     def run_batch(self, batch_prompt):
         """Run model in batch"""
         batch_reponse = ''
         for single_prompt in batch_prompt:
-            batch_reponse += self(input_prompt = single_prompt)
+            batch_reponse += self(input_prompt = single_prompt, 
+                                  use_improve = self.run_improve,
+                                  cov_data = self.get_prev_cov_result() if self.run_improve else None
+                                  )
         return batch_reponse
-
-
 
     # task
     def prepare_input(self,
@@ -216,11 +280,12 @@ class Agent(Gemini_Inference, PyTest_Environment):
         assert self.data_repsonse_task['create_testcases'] is not None        
         reponse_dict = self.data_repsonse_task['create_testcases'] 
         # make one file.py contains all test cases
-        (output_temp_file_name, install_dependencies
+        (output_temp_file_name, install_dependencies, target_funcs
         ) \
         = self.write_testcases_file(model_reponse = reponse_dict['total_reponse'])
 
         self.data_repsonse_task['check_dependencies'] = output_temp_file_name
+        self.data_repsonse_task['target_funcs'] = target_funcs
         return self.check_install_dependencies(install_dependencies)
 
     # task
@@ -230,7 +295,8 @@ class Agent(Gemini_Inference, PyTest_Environment):
 
         # output_temp_file_name = '29cbad18-11fd-407b-a1f1-888249c0a9a2.py'
         # run pytest
-        status = self.run_make_report(test_cases_file_path= output_temp_file_name)
+        status = self.run_make_report(test_cases_file_path= output_temp_file_name, 
+                                      run_improve= self.run_improve)
 
         self.data_repsonse_task['execute_pytest'] = status
         return True
