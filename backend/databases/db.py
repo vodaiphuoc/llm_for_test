@@ -100,7 +100,11 @@ class DB_handler(object):
             if indent_result['total_error'] == 0:
                 meta_data.extend(indent_result['metadata'])
 
-        return all_file_error_count, unpack_data, unpack_test_data, meta_data
+        
+        new_metadata = [  (ele.search_url, ele.segment_type, ele.class_name, ele.function_name, ele.type, 
+                           ele.start_line, ele.end_line, ele.body_content)
+                        for ele in meta_data]
+        return all_file_error_count, unpack_data, unpack_test_data, new_metadata
 
     def insert_files(self, unpack_data: List[tuple], meta_data = None)->None:
         """
@@ -114,6 +118,10 @@ class DB_handler(object):
                 del_prompt = """DROP TABLE IF EXISTS user_files;"""
                 self.connection.execute(del_prompt)
 
+                if self.db_type == 'test_cases':
+                    print('drop meta data')
+                    self.connection.execute("""DROP TABLE IF EXISTS metadata;""")
+
                 if self.db_type == "implement":
                     create_prompt = """
 CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RawContent TEXT, RenderContent TEXT);
@@ -124,7 +132,7 @@ CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, R
 CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RepoFileURL TEXT, impl_RawContent TEXT, moduleImport TEXT, test_RawContent TEXT , RenderContent TEXT);
 """
                     create_metadata = """
-CREATE TABLE IF NOT EXISTS metadata (id INT PRIMARY KEY, SearchFileUrl TEXT, segment_type TEXT, class_name TEXT, function_name TEXT, type TEXT , start_line TEXT, end_line INT, body_content TEXT);
+CREATE TABLE IF NOT EXISTS metadata (id INT PRIMARY KEY, SearchFileUrl TEXT, segment_type TEXT, class_name TEXT, function_name TEXT, type TEXT , start_line INT, end_line INT, body_content TEXT);
 """
                     self.connection.execute(create_prompt)
                     self.connection.execute(create_metadata)
@@ -139,9 +147,11 @@ CREATE TABLE IF NOT EXISTS metadata (id INT PRIMARY KEY, SearchFileUrl TEXT, seg
                 self.connection.executemany(prompt, unpack_data)
                 
                 if self.db_type == 'test_cases':
-                    sql = "INSERT INTO metadata" +\
+                    assert meta_data is not None
+                    sql = "INSERT INTO metadata " +\
                                 "(SearchFileUrl, segment_type, class_name, function_name, type, start_line, end_line, body_content)" +\
                                 "VALUES (?,?,?,?,?,?,?,?);"
+                    print(f'run insert metadata, {self.db_type}, number of new data: {len(meta_data)}')
                     self.connection.executemany(sql,meta_data)
                         
 
@@ -164,6 +174,24 @@ CREATE TABLE IF NOT EXISTS metadata (id INT PRIMARY KEY, SearchFileUrl TEXT, seg
         
         except Exception as error:
             print(f"Cannot peform select file {url} error: ", error)
+
+    def get_functions(self, url:str, lines: List[int]):
+        assert self.db_type == 'test_cases', "this method is used only for test_cases.db"
+
+        line_conditions = "OR".join([f"(start_line <= {_line} AND end_line >= {_line})" for _line in lines])
+        try:
+            with self.connection:
+                
+                query_prompt = f"""SELECT class_name, function_name, body_content 
+FROM metadata 
+WHERE SearchFileUrl LIKE '%{url}'
+AND ({line_conditions});"""
+                
+                records = self.connection.execute(query_prompt).fetchall()
+                return records
+        
+        except Exception as error:
+            print(f"Cannot peform select file {url}, db type {self.db_type} error: ", error)
 
 
     def show_table(self)->List[Tuple[str]]:

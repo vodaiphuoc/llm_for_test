@@ -289,19 +289,22 @@ class Gemini_Inference(Gemini_Prompts):
     def __call__(self,
                  input_prompt: Union[str, List[str]],
                  use_improve:bool = False,
-                 cov_data: dict = None,
+                 cov_data: List[dict] = None,
                  )->Union[str, List[str]]:
         """
-        cov_data = {
+        cov_data = [{
             'prev_testcases': ..., 
             'prev_cov': ..., 
             'missing_lines_code': ..., 
-        }
+        }]
         """
-        
         if use_improve:
             assert cov_data is not None
-            cov_improve = self.improve_prompt.format(**cov_data)
+            
+            completed_cov_params = "\n".join([self.prev_cov_params.format(**cov_param) 
+                                              for cov_param in cov_data])
+
+            cov_improve = self.improve_prompt.format(prev_cov_params = completed_cov_params)
         else:
             cov_improve = ""
 

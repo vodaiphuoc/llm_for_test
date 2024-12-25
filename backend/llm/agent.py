@@ -188,7 +188,7 @@ class Agent(Gemini_Inference, PyTest_Environment):
         print('===================prepare for run imporving...')
         assert self.data_repsonse_task['target_funcs'] is not None
         assert self.data_repsonse_task['check_dependencies'] is not None
-        
+        print('lenght of target function: ',len(self.data_repsonse_task['target_funcs']))
 
         with open(self.log_dir+'/report_slipcover.json','r') as f:
             cov = json.load(f)
@@ -203,23 +203,27 @@ class Agent(Gemini_Inference, PyTest_Environment):
                 project_dir2module_path = self.log_dir +'/' + module_path
                 splicover_params = cov_files[project_dir2module_path]
 
-                original_content = self.test_cases_db.get_content_from_url(url = module_path.replace('/','PATHSPLIT').replace('user_repo',''),
-                                                            content_type='impl_RawContent')[1] #<-- select index 1
+                # original content but not executed
+                original_content: List[tuple] = self.test_cases_db.get_functions(\
+                                                            url = module_path.replace('/','PATHSPLIT').replace('user_repo',''),
+                                                            lines = splicover_params["missing_lines"])
 
-                miss_code = "".join([_line for ith, _line in enumerate(original_content.split('\n')) 
-                                if ith+1 in splicover_params["missing_lines"]
-                                ])
-                print('miss code:', miss_code)
-                for (target_func, test_cases) in test_calse_list:
-                    print('target: ', miss_code)
-                    if target_func in miss_code:
-                        prev_for_improve.append({
-                            'prev_testcases': test_cases, 
-                            'prev_cov': splicover_params["summary"]["percent_covered"], 
-                            'missing_lines_code': miss_code, 
-                        })
+                for (_class_name, _func_name, _body_content) in original_content:
+                    
+                    correspoding_testcase = [test_cases for (target_func, test_cases) in test_calse_list 
+                                            if _func_name in target_func or _class_name in target_func][0]
+
+                    prev_for_improve.append({
+                        'prev_testcases': correspoding_testcase, 
+                        'prev_cov': splicover_params["summary"]["percent_covered"], 
+                        'missing_lines_code': f"In function: {_func_name},\ncode segment: {_body_content}",
+                    })
         
-        print('prev_for_improve: ',prev_for_improve)
+        # print('prev_for_improve: ',prev_for_improve)
+
+        # with open('temp_param_for_improve.json','w') as f:
+        #     json.dump(prev_for_improve, f, indent= 5)
+
         return prev_for_improve
 
     def run_batch(self, batch_prompt):

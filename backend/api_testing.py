@@ -38,7 +38,8 @@ def upload_files_api(implement_db = None,
                             model = model)
                         ))
     )
-
+    if implement_db is None:
+        test_cases_db.close()
 
 def gen_testcases_api():
     
@@ -82,11 +83,12 @@ def gen_testcases_api():
                     task_id='task-4', request_data=GenerateTask_Testing(**gen_params))
         ))
 
+    test_cases_db.close()
 
 
 if __name__ == '__main__':
-    upload_files_api()
-    # gen_testcases_api()
+    # upload_files_api()
+    gen_testcases_api()
 
 
 
