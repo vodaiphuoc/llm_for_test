@@ -81,10 +81,12 @@ class DB_handler(object):
         dtype_convert = {'string':'TEXT','integer':'TN'}  
 
         if table =='functions_metadata':
+            _num_fields = len(TypeAdapter(Function_Metadata).json_schema()['properties'].items())
             subfields = ",".join([k +' '+dtype_convert.get(v['type']) 
                               for k, v in TypeAdapter(Function_Metadata).json_schema()['properties'].items()
                               ])
         else:
+            _num_fields = len(TypeAdapter(Branch_Metadata).json_schema()['properties'].items())
             subfields = ",".join([k +' '+dtype_convert.get(v['type']) 
                               for k, v in TypeAdapter(Branch_Metadata).json_schema()['properties'].items()
                               ])
@@ -92,10 +94,11 @@ class DB_handler(object):
         if get_prompt:
             return f"CREATE TABLE IF NOT EXISTS {table} (id INT PRIMARY KEY, {subfields});"
         else:
-            return ",".join([k for k, v in TypeAdapter(Function_Metadata).json_schema()['properties'].items()]) \
+            return (",".join([k for k, v in TypeAdapter(Function_Metadata).json_schema()['properties'].items()]), 
+                    ",".join(['?']*_num_fields) )\
                     if table =='functions_metadata' else \
-                    ",".join([k for k, v in TypeAdapter(Branch_Metadata).json_schema()['properties'].items()])
-
+                    (",".join([k for k, v in TypeAdapter(Branch_Metadata).json_schema()['properties'].items()]), 
+                     ",".join(['?']*_num_fields) )
 
     @staticmethod
     def prepare_input(files: File_List):
@@ -185,15 +188,20 @@ CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, R
                 if self.db_type == 'test_cases':
                     assert functions_meta_data is not None and branches_meta_data is not None
 
+                    _fields, _fields_inputs = DB_handler.get_metadata_table_prompt(get_prompt=False, table='functions_metadata')
+                    
                     sql = "INSERT INTO functions_metadata " +\
-                                f"({DB_handler.get_metadata_table_prompt(get_prompt=False, table='functions_metadata')})" +\
-                                "VALUES (?,?,?,?,?,?,?,?);"
+                                f"({_fields})" +\
+                                f"VALUES ({_fields_inputs});"
                     print(f'run insert functions_metadata, {self.db_type}, number of new data: {len(functions_meta_data)}')
+                    
                     self.connection.executemany(sql,functions_meta_data)
                     
+                    _fields, _fields_inputs = DB_handler.get_metadata_table_prompt(get_prompt=False, table='braches_metadata')
+                    
                     sql = "INSERT INTO braches_metadata " +\
-                                f"({DB_handler.get_metadata_table_prompt(get_prompt=False, table='braches_metadata')})" +\
-                                "VALUES (?,?,?,?,?,?,?,?);"
+                                f"({_fields})" +\
+                                f"VALUES ({_fields_inputs});"
                     
                     print(f'run insert braches_metadata, {self.db_type}, number of new data: {len(branches_meta_data)}')
                     self.connection.executemany(sql,branches_meta_data)
