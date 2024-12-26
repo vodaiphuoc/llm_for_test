@@ -130,7 +130,8 @@ async def upload_files_router(params: Annotated[UploadFileDependencies,
                                                        relative_file_path = dir) 
                                             for dir in params.list_files])
         
-        (all_file_error_count, unpack_data, unpack_test_data, meta_data) = \
+
+        (all_file_error_count, unpack_data, unpack_test_data, functions_meta_data, branches_meta_data) = \
             params.implement_db.prepare_input(list_data)
 
         # insert to DB
@@ -139,7 +140,8 @@ async def upload_files_router(params: Annotated[UploadFileDependencies,
         
         # if all_file_error_count == 0:
         params.test_cases_db.insert_files(unpack_data = unpack_test_data, 
-                                            meta_data = meta_data)
+                                          functions_meta_data = functions_meta_data, 
+                                          branches_meta_data = branches_meta_data)
         print('done insert into test_cases_db')
 
 

@@ -1,13 +1,15 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Literal
 import re
 
 @dataclass
 class SingleTargetTestCases:
     target: str
+    target_type: str
     test_cases_codes: str
 
-FORMAT_SINGLE_TEST = f"""# target function: {{target}}
+FORMAT_SINGLE_TEST = f"""# target: {{target}}
+# target type: {{target_type}}
 {{test_cases_codes}}
 
 """

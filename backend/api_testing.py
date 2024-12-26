@@ -87,8 +87,8 @@ def gen_testcases_api():
 
 
 if __name__ == '__main__':
-    # upload_files_api()
-    gen_testcases_api()
+    upload_files_api()
+    # gen_testcases_api()
 
 
 

@@ -9,56 +9,96 @@ import sys
 import tokenize
 import re
 import itertools
-from typing import List, Dict, Literal, Union
+from typing import List, Dict, Literal, Union, Tuple
 import ast
 from copy import deepcopy
-from collections import namedtuple
+from databases.api_data_model import Branch_Metadata, Function_Metadata
 
-segment2db = namedtuple('segment2db',
-                        ['search_url','segment_type','class_name','function_name','type','start_line','end_line','body_content'])
 
-def get_meta_data(total_lines:int, search_url)->List[segment2db]:
+def get_branch_from_function(SearchFileUrl:str,
+                            class_name: str,
+                            function_type: Literal['function','method'], 
+                            function_tree: ast.FunctionDef,
+                            total_lines: List[str]
+                            )->Tuple[Function_Metadata, List[Branch_Metadata]]:
+    """
+    Get if/else or for loop branches inside a function or a method
+
+    Returns: 
+        List of tuple (`branch_start_line`, `branch_end_line`, `branch_type`)
+    """
+    # function level
+    func_metadata = Function_Metadata(SearchFileUrl = SearchFileUrl,
+                                    class_name=  class_name, 
+                                    function_name = function_tree.name,
+                                    function_type = function_type,
+                                    start_line =  function_tree.lineno, 
+                                    end_line = function_tree.end_lineno,
+                                    body_content = "".join(total_lines[function_tree.lineno: function_tree.end_lineno])
+    )
+
+    # branch level
+    branches = []
+    for _branch in function_tree.body:
+        if isinstance(_branch, ast.For) or isinstance(_branch, ast.If):
+            branches.append(Branch_Metadata(SearchFileUrl = SearchFileUrl,
+                                            class_name=  class_name,
+                                            function_name = function_tree.name,
+                                            function_type = function_type,
+                                            branch_start_line =  _branch.lineno, 
+                                            branch_end_line = _branch.end_lineno,
+                                            branch_type = type(_branch).__name__,
+                                            branch_content = "".join(total_lines[_branch.lineno -1: _branch.end_lineno])
+            ))
+                
+        else:
+            continue
+    return func_metadata, branches
+
+def get_meta_data(total_lines:int, 
+                  search_url:str
+                  )->Tuple[List[Function_Metadata], List[Branch_Metadata]]:
     
     file_content = "".join(total_lines)
     structure = ast.parse(source= file_content, mode='exec')
 
-    metadata = []
-
+    function_metadata = []
+    branch_metadata = []
+    
     try:
         for element in structure.body:
             if isinstance(element, ast.FunctionDef):
-                metadata.append(segment2db(search_url = search_url,
-                                            segment_type = 'function', 
-                                            class_name=  '', 
-                                            function_name = element.name, 
-                                            type = 'function', 
-                                            start_line =  element.lineno, 
-                                            end_line = element.end_lineno, 
-                                            body_content = "".join(total_lines[element.lineno: element.end_lineno])
-                                        ))
+                func_metadata, branches = get_branch_from_function(SearchFileUrl = search_url,
+                                                                    class_name = '',
+                                                                    function_type = 'function', 
+                                                                    function_tree=  element,
+                                                                    total_lines = total_lines)
+                function_metadata.append(func_metadata)
+                branch_metadata.extend(branches)
 
             elif isinstance(element, ast.ClassDef):
-                methods = [segment2db(search_url = search_url,
-                                    segment_type = 'class', 
-                                    class_name= element.name, 
-                                    function_name = method_data.name, 
-                                    type = 'method', 
-                                    start_line =  method_data.lineno, 
-                                    end_line = method_data.end_lineno, 
-                                    body_content = "".join(total_lines[method_data.lineno: method_data.end_lineno])
-                                    )
-                    for method_data in element.body
-                    if isinstance(method_data, ast.FunctionDef)
-                    ]
-                metadata.extend(methods)
+                for method_data in element.body:
+                    if isinstance(method_data, ast.FunctionDef):
+                        func_metadata, branches = get_branch_from_function(SearchFileUrl = search_url,
+                                                                        class_name = element.name,
+                                                                        function_type = 'method', 
+                                                                        function_tree=  method_data,
+                                                                        total_lines = total_lines)
+                        function_metadata.append(func_metadata)
+                        branch_metadata.extend(branches)
+                    
+                    else:
+                        continue
+
             else:
                 continue
+    
     except Exception as e:
         print(e)
         print(search_url)
         print(type(element))
     
-    return metadata
+    return function_metadata, branch_metadata
 
 class Segment():
     """Segment object can be used 
@@ -305,5 +345,5 @@ class IndentChecker(object):
                     for ith, line in enumerate(total_lines)
                     ],
                 'total_error':len(total_errors),
-                'metadata':get_meta_data(total_lines, search_url)
+                'metadata':get_meta_data(total_lines, search_url)  # type: List[Branch]
             }

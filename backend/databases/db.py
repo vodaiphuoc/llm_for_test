@@ -1,4 +1,6 @@
-from databases.api_data_model import File_List
+from databases.api_data_model import File_List, Function_Metadata, Branch_Metadata
+from databases.indent_checker import IndentChecker
+from pydantic import TypeAdapter
 
 import sqlite3
 import json
@@ -73,15 +75,39 @@ class DB_handler(object):
             print(f"Cannot connect to {db_url} db, ", error)
 
     @staticmethod
+    def get_metadata_table_prompt(get_prompt:bool, 
+                                  table: Literal['functions_metadata','braches_metadata']
+                                  ):
+        dtype_convert = {'string':'TEXT','integer':'TN'}  
+
+        if table =='functions_metadata':
+            subfields = ",".join([k +' '+dtype_convert.get(v['type']) 
+                              for k, v in TypeAdapter(Function_Metadata).json_schema()['properties'].items()
+                              ])
+        else:
+            subfields = ",".join([k +' '+dtype_convert.get(v['type']) 
+                              for k, v in TypeAdapter(Branch_Metadata).json_schema()['properties'].items()
+                              ])
+
+        if get_prompt:
+            return f"CREATE TABLE IF NOT EXISTS {table} (id INT PRIMARY KEY, {subfields});"
+        else:
+            return ",".join([k for k, v in TypeAdapter(Function_Metadata).json_schema()['properties'].items()]) \
+                    if table =='functions_metadata' else \
+                    ",".join([k for k, v in TypeAdapter(Branch_Metadata).json_schema()['properties'].items()])
+
+
+    @staticmethod
     def prepare_input(files: File_List):
         all_file_error_count = 0
         
         unpack_data = []
         unpack_test_data = []
-        meta_data = []
+        funcs_meta_data = []
+        branches_meta_data = []
 
         for ele in files.list_file:
-            indent_result = ele.file_content_with_error
+            indent_result = IndentChecker.check(ele.file_path, ele.search_file_path)
 
             _search_path = ele.search_file_path
             _content = ele.file_content
@@ -98,15 +124,22 @@ class DB_handler(object):
                                     ele.import_module))
             
             if indent_result['total_error'] == 0:
-                meta_data.extend(indent_result['metadata'])
-
+                funcs_meta, branch_meta = indent_result['metadata']
+                funcs_meta_data.extend(funcs_meta)
+                branches_meta_data.extend(branch_meta)
         
-        new_metadata = [  (ele.search_url, ele.segment_type, ele.class_name, ele.function_name, ele.type, 
-                           ele.start_line, ele.end_line, ele.body_content)
-                        for ele in meta_data]
-        return all_file_error_count, unpack_data, unpack_test_data, new_metadata
+        return (all_file_error_count, 
+                unpack_data, 
+                unpack_test_data,
+                [ele.to_tuple for ele in funcs_meta_data], 
+                [ele.to_tuple for ele in branches_meta_data]
+        )
 
-    def insert_files(self, unpack_data: List[tuple], meta_data = None)->None:
+    def insert_files(self, 
+                     unpack_data: List[tuple], 
+                     functions_meta_data = None, 
+                     branches_meta_data = None
+                     )->None:
         """
         - Delete old files when user browse new folder
         - Create `user_files` table for new browse folder
@@ -120,7 +153,8 @@ class DB_handler(object):
 
                 if self.db_type == 'test_cases':
                     print('drop meta data')
-                    self.connection.execute("""DROP TABLE IF EXISTS metadata;""")
+                    self.connection.execute("""DROP TABLE IF EXISTS functions_metadata;""")
+                    self.connection.execute("""DROP TABLE IF EXISTS branches_metadata;""")
 
                 if self.db_type == "implement":
                     create_prompt = """
@@ -131,11 +165,13 @@ CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, R
                     create_prompt = """
 CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RepoFileURL TEXT, impl_RawContent TEXT, moduleImport TEXT, test_RawContent TEXT , RenderContent TEXT);
 """
-                    create_metadata = """
-CREATE TABLE IF NOT EXISTS metadata (id INT PRIMARY KEY, SearchFileUrl TEXT, segment_type TEXT, class_name TEXT, function_name TEXT, type TEXT , start_line INT, end_line INT, body_content TEXT);
-"""
                     self.connection.execute(create_prompt)
-                    self.connection.execute(create_metadata)
+
+                    # create metadata table
+                    self.connection.execute(DB_handler.get_metadata_table_prompt(get_prompt=True,
+                                                                                 table='functions_metadata'))
+                    self.connection.execute(DB_handler.get_metadata_table_prompt(get_prompt=True,
+                                                                                 table='braches_metadata'))
             
             with self.connection:
                 prompt = """
@@ -147,13 +183,20 @@ CREATE TABLE IF NOT EXISTS metadata (id INT PRIMARY KEY, SearchFileUrl TEXT, seg
                 self.connection.executemany(prompt, unpack_data)
                 
                 if self.db_type == 'test_cases':
-                    assert meta_data is not None
-                    sql = "INSERT INTO metadata " +\
-                                "(SearchFileUrl, segment_type, class_name, function_name, type, start_line, end_line, body_content)" +\
+                    assert functions_meta_data is not None and branches_meta_data is not None
+
+                    sql = "INSERT INTO functions_metadata " +\
+                                f"({DB_handler.get_metadata_table_prompt(get_prompt=False, table='functions_metadata')})" +\
                                 "VALUES (?,?,?,?,?,?,?,?);"
-                    print(f'run insert metadata, {self.db_type}, number of new data: {len(meta_data)}')
-                    self.connection.executemany(sql,meta_data)
-                        
+                    print(f'run insert functions_metadata, {self.db_type}, number of new data: {len(functions_meta_data)}')
+                    self.connection.executemany(sql,functions_meta_data)
+                    
+                    sql = "INSERT INTO braches_metadata " +\
+                                f"({DB_handler.get_metadata_table_prompt(get_prompt=False, table='braches_metadata')})" +\
+                                "VALUES (?,?,?,?,?,?,?,?);"
+                    
+                    print(f'run insert braches_metadata, {self.db_type}, number of new data: {len(branches_meta_data)}')
+                    self.connection.executemany(sql,branches_meta_data)
 
         except Exception as error:
             print(f"Cannot peform insert many files, db type: {self.db_type}, ", error)
@@ -175,24 +218,38 @@ CREATE TABLE IF NOT EXISTS metadata (id INT PRIMARY KEY, SearchFileUrl TEXT, seg
         except Exception as error:
             print(f"Cannot peform select file {url} error: ", error)
 
-    def get_functions(self, url:str, lines: List[int]):
+    def get_functions(self, url:str, lines: List[int], missing_branches: List[List[int]]):
+        """Use to query a subset of code which is not executed"""
+
+        # step 0: check db type, only use for testcase.db
         assert self.db_type == 'test_cases', "this method is used only for test_cases.db"
 
-        line_conditions = "OR".join([f"(start_line <= {_line} AND end_line >= {_line})" for _line in lines])
+        # step 1: find original functions/methods which are not executed
+        outputs = []
         try:
-            with self.connection:
-                
-                query_prompt = f"""SELECT class_name, function_name, body_content 
+            for (start_branch, end_branch) in missing_branches:
+                query_prompt = f"""SELECT class_name, function_name, type, start_line, body_content 
 FROM metadata 
 WHERE SearchFileUrl LIKE '%{url}'
-AND ({line_conditions});"""
+AND ((start_line <= {start_branch} AND end_line >= {end_branch}));"""
+                with self.connection:
+                    record = self.connection.execute(query_prompt).fetchall()[0]
                 
-                records = self.connection.execute(query_prompt).fetchall()
-                return records
-        
-        except Exception as error:
-            print(f"Cannot peform select file {url}, db type {self.db_type} error: ", error)
+                _class_name, _func_name, _type, _start_line, _body_content = record
+                
+                # step 2: crop a subset (aka branch) of original funtion/method
+                query_branch =  "".join(_body_content.split("\n")[start_branch - _start_line: end_branch - _start_line])
+                outputs.append((_class_name, _func_name, _type, query_branch))
 
+            return outputs
+        
+        except sqlite3.Error as error:
+            print(f"Cannot peform select branch with file {url}, db type {self.db_type}, error: ", error)
+            return None
+        except IndexError as error:
+            print(f"Index error with file {url}, db type {self.db_type}, error: ", error)
+            return None
+        
 
     def show_table(self)->List[Tuple[str]]:
         cursor = self.connection.cursor()

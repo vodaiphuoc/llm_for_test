@@ -4,23 +4,15 @@ from typing import Literal, List, Dict, Union
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-class Instructions(object):
-    initial_instruct = f"""
-- Now, give output with below tasks:
-"""
-    improve_instruct = f"""
-- Now, give output to improve the covarage value of each case and reduce above missing lines:
-"""
-
-class Gemini_Prompts(Instructions):
+class Gemini_Prompts(object):
 
     prev_cov_params = f"""
     ** Your previous testcases
-    {{prev_testcases}}
+{{prev_testcases}}
     ** previous covarage value
-    {{prev_cov}}
+{{prev_cov}}
     ** missing lines in target functions/classes
-    {{missing_lines_code}}
+{{missing_lines_code}}
     """
 
     improve_prompt = f"""
@@ -28,6 +20,14 @@ class Gemini_Prompts(Instructions):
         some missing lines in target functions/classes which are not executed
         when runing testcase with Pytest.
         {{prev_cov_params}}
+
+        - Below are some examples showing a Original file path, Module import, and Functions and Output format:
+        **Example 1
+        {{example3}}
+
+        - Now, re-write new testcases for below codes to increase the covarage value of each case and reduce the number of missing lines
+        using Pytest library only.
+        {{total_content}}
         """
 
     prompt = f"""
@@ -35,10 +35,13 @@ class Gemini_Prompts(Instructions):
         may contains many Python functions (denote by def keyword). 
         - Don't include content of function in your result, 
         only testing functions. 
-        - You must write import functions or classes from 'Module import' and put it in import_module_command of format output
+        - You must write import functions or classes from 'Module import' and put it in `import_module_command` of format output
         - Determine what are dependencies have to install outside of Python built-in modules, functions, types... and
-        put it in intall_dependencies of format output 
-        - Determine what are Python built-in dependencies, put it in built_in_import of format output
+        put it in `intall_dependencies` of format output 
+        - Determine what are Python built-in dependencies, put it in `built_in_import` of format output
+        - Determine target of your testcases which is funtion name if it is a normal function or method name of the class if
+        it is a method inside the class, put it in `target` of format output, 
+        - Determine `target_type` of the `target`, can be `function` or `method` if it is method of the class
         - Below are some examples showing a Original file path, Module import, and Functions and Output format:
         **Example 1
         {{example1}}
@@ -47,9 +50,7 @@ class Gemini_Prompts(Instructions):
         **Example 3
         {{example3}}
 
-        {{cov_improve}}
-
-        - {{final_instruction}}
+        - Now, give output with below tasks:
         {{total_content}}
         """
 
@@ -78,6 +79,7 @@ import pytest
 
     'test_cases': [{
         'target': capital_case,
+        'target_type': function,
         'test_cases_codes':
 def test_capital_case():
     assert capital_case('hello') == 'Hello'
@@ -85,6 +87,7 @@ def test_capital_case():
     },
     {
         'target': find_max_element,
+        'target_type': function,
         'test_cases_codes':
 def test_find_max_element():
     assert find_max_element([1, 2, 3, 4, 5]) == 5
@@ -134,7 +137,8 @@ import pytest'
 import os'
 
     'test_cases': [{
-        'target': HuggingfaceModel,
+        'target': HuggingfaceModel.__init__,
+        'target_type': method,
         'test_cases_codes':
 @pytest.fixture
 def model_url():
@@ -150,13 +154,6 @@ def test_tokenizer_initialization(model_url):
     # Tests if the tokenizer is initialized correctly
     model = HuggingfaceModel(model_url, context_length=100)  # Use a dummy context_length
     assert isinstance(model.tokenizer, AutoTokenizer)
-
-def test_pipeline_initialization(model_url):
-    # Tests if the text-generation pipeline is initialized correctly
-    model = HuggingfaceModel(model_url, context_length=100)  # Use a dummy context_length
-    assert isinstance(model.pipeline, transformers.pipeline)
-    assert model.pipeline.task == "text-generation"
-    assert model.pipeline.model == model_url
 
 def test_context_length_attribute(model_url, context_length):
     # Tests if the context_length attribute is set correctly
@@ -182,31 +179,35 @@ import functools
 import sortedcontainers
 from typing import List, Dict, Tuple, Iterator
 
-def palindromePairs(self, words: List[str]) -> List[List[int]]:
-    ans = []
-    dict = {
-        word[::-1]: i 
-        for i, word in enumerate(words)
-    }
+class Solution_PalindromePairs:
+    def __init__(self, task_name:str)->None:
+        self.task_name = task_name
 
-    for i, word in enumerate(words):
-      if "" in dict and dict[""] != i and word == word[::-1]:
-        ans.append([i, dict[""]])
+    def palindromePairs(self, words: List[str]) -> List[List[int]]:
+        ans = []
+        dict = {
+            word[::-1]: i 
+            for i, word in enumerate(words)
+        }
 
-      for j in range(1, len(word) + 1):
-        l = word[:j]
-        r = word[j:]
-        if l in dict and dict[l] != i and r == r[::-1]:
-          ans.append([i, dict[l]])
-        if r in dict and dict[r] != i and l == l[::-1]:
-          ans.append([dict[r], i])
+        for i, word in enumerate(words):
+            if "" in dict and dict[""] != i and word == word[::-1]:
+                ans.append([i, dict[""]])
 
-    return ans
+        for j in range(1, len(word) + 1):
+            l = word[:j]
+            r = word[j:]
+            if l in dict and dict[l] != i and r == r[::-1]:
+                ans.append([i, dict[l]])
+            if r in dict and dict[r] != i and l == l[::-1]:
+                ans.append([dict[r], i])
+
+        return ans
 
 **Output
 {        
     'original_file_path':'user_repo/implements/leet_code.py'
-    'import_module_command': 'from user_repo.implements.leet_code import palindromePairs'
+    'import_module_command': 'from user_repo.implements.leet_code import Solution_PalindromePairs'
     'intall_dependencies': 'import sortedcontainers'
     'built_in_import': 
 import math
@@ -220,39 +221,32 @@ from typing import List, Dict, Tuple, Iterator
 import pytest
 
     'test_cases': [{
-        'target': palindromePairs,
+        'target': Solution_PalindromePairs.palindromePairs,
+        'target_type': 'method',
         'test_cases_codes':
 def test_empty_input():
     words = []
     expected = []
-    assert palindromePairs(words) == expected
+    pairs_instance = Solution_PalindromePairs('palind')
+    assert pairs_instance.palindromePairs(words) == expected
 
 def test_single_word():
     words = ["a"]
     expected = []
-    assert palindromePairs(words) == expected
+    pairs_instance = Solution_PalindromePairs('palind')
+    assert pairs_instance.palindromePairs(words) == expected
 
 def test_no_palindromes():
     words = ["abc", "def", "ghi"]
     expected = []
-    assert palindromePairs(words) == expected
+    pairs_instance = Solution_PalindromePairs('palind')
+    assert pairs_instance.palindromePairs(words) == expected
 
 def test_simple_palindromes():
     words = ["a", "abba"]
     expected = [[0, 1], [1, 0]]
-    assert palindromePairs(words) == expected
-
-def test_multiple_palindromes():
-    words = ["bat", "tab", "cat"]
-    expected = [[0, 1], [1, 0]]
-    assert palindromePairs(words) == expected
-
-def test_complex_case():
-    words = ["abcd", "dcba", "lls", "s", "sssll"]
-    expected = [[0, 1], [1, 0], [3, 2], [2, 4]]
-    assert palindromePairs(words) == expected
-    }]
-
+    pairs_instance = Solution_PalindromePairs('palind')
+    assert pairs_instance.palindromePairs(words) == expected
 }
 """
 
@@ -303,20 +297,24 @@ class Gemini_Inference(Gemini_Prompts):
             
             completed_cov_params = "\n".join([self.prev_cov_params.format(**cov_param) 
                                               for cov_param in cov_data])
-
-            cov_improve = self.improve_prompt.format(prev_cov_params = completed_cov_params)
+            total_prompt = self.improve_prompt.format(prev_cov_params = completed_cov_params,
+                                                      example3 = self.example3,
+                                                      total_content = input_prompt)
+            
         else:
-            cov_improve = ""
-
-        total_prompt = self.prompt.format(example1 = self.example1,
-                                          example2 = self.example2, 
-                                          example3 = self.example3,
-                                          cov_improve = cov_improve,
-                                          final_instruction = self.initial_instruct if not \
-                                            use_improve else self.initial_instruct,
-                                          total_content = input_prompt)
-        final_prompt = self.gemma_prompt.format(input_prompt = total_prompt)
+            total_prompt = self.prompt.format(example1 = self.example1,
+                                            example2 = self.example2, 
+                                            example3 = self.example3,
+                                            total_content = input_prompt)
+            
         
+        final_prompt = self.gemma_prompt.format(input_prompt = total_prompt)
+        # save input prompt
+        file_name = 'temp_prompt_improve.txt' if use_improve else 'temp_prompt.txt'
+        with open(file_name,'w') as f:
+            f.write(final_prompt)
+            f.close()
+
         response = self.model.generate_content(contents = final_prompt, 
                                                generation_config = genai.GenerationConfig(
                                                 response_schema = LLM_Output,

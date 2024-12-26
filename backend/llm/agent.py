@@ -101,7 +101,7 @@ class PyTest_Environment(object):
         # save target function
         target_funcs = []
         for each_out in list_llm_output:
-            cases = [(_case['target'], _case['test_cases_codes']) 
+            cases = [(_case['target'], _case['target_type'], _case['test_cases_codes']) 
                      for _case in each_out.test_cases]
             
             target_funcs.append({each_out.original_file_path: cases})
@@ -139,7 +139,7 @@ class PyTest_Environment(object):
         slip_cover_output = self.pytest_report_dir.replace('.xml',slip_cover_output_format)
         try:
             # execute pytest under artificial venv
-            pytest_cmd = f'{self.python_env_path} -m slipcover --json \
+            pytest_cmd = f'{self.python_env_path} -m slipcover --branch --json \
                         --out {slip_cover_output} \
                         -m pytest {self.log_dir}/{test_cases_file_path} \
                         --junit-xml={self.pytest_report_dir}'
@@ -205,21 +205,31 @@ class Agent(Gemini_Inference, PyTest_Environment):
 
                 # original content but not executed
                 original_content: List[tuple] = self.test_cases_db.get_functions(\
-                                                            url = module_path.replace('/','PATHSPLIT').replace('user_repo',''),
-                                                            lines = splicover_params["missing_lines"])
+                                                    url = module_path.replace('/','PATHSPLIT').replace('user_repo',''),
+                                                    lines = splicover_params["missing_lines"],
+                                                    missing_branches = splicover_params['missing_branches'])
 
-                for (_class_name, _func_name, _body_content) in original_content:
+                for (_class_name, _func_name, _type, _missing_brach) in original_content:
                     
-                    correspoding_testcase = [test_cases for (target_func, test_cases) in test_calse_list 
-                                            if _func_name in target_func or _class_name in target_func][0]
+                    # not to insert output to DB so just do manual search
+                    try:
+                        correspoding_testcase = [test_cases
+                                                for (target, target_type, test_cases) in test_calse_list 
+                                                if _class_name+'.'+_func_name in target and _type == target_type
+                                                ][0] #<-- select first element
 
-                    prev_for_improve.append({
-                        'prev_testcases': correspoding_testcase, 
-                        'prev_cov': splicover_params["summary"]["percent_covered"], 
-                        'missing_lines_code': f"In function: {_func_name},\ncode segment: {_body_content}",
-                    })
+                        prev_for_improve.append({
+                            'prev_testcases': correspoding_testcase, 
+                            'prev_cov': splicover_params["summary"]["percent_covered"], 
+                            'missing_lines_code': f"In function: {_func_name},\ncode segment: {_missing_brach}",
+                        })
+
+                    except IndexError as e:
+                        print('index error in manual search: ',e)
+
+                    
         
-        # print('prev_for_improve: ',prev_for_improve)
+        print('prev_for_improve: ',prev_for_improve)
 
         # with open('temp_param_for_improve.json','w') as f:
         #     json.dump(prev_for_improve, f, indent= 5)

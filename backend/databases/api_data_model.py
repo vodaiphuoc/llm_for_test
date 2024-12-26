@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 from pydantic.dataclasses import dataclass
-from pydantic import computed_field, Field, DirectoryPath, FilePath
-from typing import List, Optional, Dict, Any, Union
+from pydantic import computed_field, Field, DirectoryPath, FilePath, TypeAdapter
+from typing import List, Optional, Dict, Any, Union, Tuple
 import typing_extensions
 import re
 import os
-from databases.indent_checker import IndentChecker
 
 @dataclass
 class UploadFilesBody_Testing():
@@ -115,16 +114,48 @@ class Script_File:
         """Read file from local machine"""
         with open(self.file_path, 'r') as f:
             return f.read()
-    
-    @computed_field
-    @property
-    def file_content_with_error(self)->Dict[str,str]:
-        """Read file from local machine"""
-        return IndentChecker.check(self.file_path, self.search_file_path)
-    
-
 
 @dataclass
 class File_List:
     list_file: List[Script_File]
 
+
+@dataclass
+class Function_Metadata:
+    """dataclass for function or method
+    """
+    SearchFileUrl: str
+    class_name: str
+    function_name: str
+    function_type: str
+    start_line: int
+    end_line: int
+    body_content: str
+
+    @computed_field
+    @property
+    def to_tuple(self)->Tuple[str]:
+        return (self.SearchFileUrl, self.class_name, self.function_name, self.function_type, \
+                self.start_line, self.end_line, self.body_content)
+
+
+
+@dataclass
+class Branch_Metadata:
+    """dataclass for a branch which can be for if/else or for_loop
+    belong to function or method
+    """
+    SearchFileUrl: str
+    class_name: str
+    function_name: str
+    function_type: str
+    branch_start_line: int
+    branch_end_line: int
+    branch_type: str
+    branch_content: str
+
+    @computed_field
+    @property
+    def to_tuple(self)->Tuple[str]:
+        return (self.SearchFileUrl, self.class_name, self.function_name, self.function_type, \
+                self.branch_start_line, self.branch_end_line, self.branch_type, self.branch_content)

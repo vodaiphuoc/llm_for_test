@@ -13,3 +13,4 @@ db/*.py
 test_pytest/
 example_google.py
 .pytest_cache/
+*.txt
