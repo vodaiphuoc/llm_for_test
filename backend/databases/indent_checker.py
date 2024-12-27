@@ -25,7 +25,7 @@ def get_branch_from_function(SearchFileUrl:str,
     Get if/else or for loop branches inside a function or a method
 
     Returns: 
-        List of tuple (`branch_start_line`, `branch_end_line`, `branch_type`)
+        Tuple[Function_Metadata, List[Branch_Metadata]]
     """
     # function level
     func_metadata = Function_Metadata(SearchFileUrl = SearchFileUrl,

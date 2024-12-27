@@ -74,9 +74,45 @@ class DB_handler(object):
         except sqlite3.Error as error:
             print(f"Cannot connect to {db_url} db, ", error)
 
+        try:
+            with self.connection:
+                del_prompt = """DROP TABLE IF EXISTS user_files;"""
+                self.connection.execute(del_prompt)
+
+                if self.db_type == 'test_cases':
+                    print('drop meta data')
+                    self.connection.execute("""DROP TABLE IF EXISTS functions_metadata;""")
+                    self.connection.execute("""DROP TABLE IF EXISTS branches_metadata;""")
+        
+        except sqlite3.Error as error:
+            print('Cannot delete tables')
+
+
+        try:
+            with self.connection:
+                if self.db_type == "implement":
+                    create_prompt = """
+CREATE TABLE user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RawContent TEXT, RenderContent TEXT);
+""" 
+                    self.connection.execute(create_prompt)
+                else:
+                    create_prompt = """
+CREATE TABLE user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RepoFileURL TEXT, impl_RawContent TEXT, moduleImport TEXT, test_RawContent TEXT , RenderContent TEXT);
+"""
+                    self.connection.execute(create_prompt)
+
+                    # create metadata table
+                    self.connection.execute(DB_handler.get_metadata_table_prompt(get_prompt=True,
+                                                                                 table='functions_metadata'))
+                    self.connection.execute(DB_handler.get_metadata_table_prompt(get_prompt=True,
+                                                                                 table='branches_metadata'))
+        
+        except sqlite3.Error as error:
+            print('Cannot create table', error)
+
     @staticmethod
     def get_metadata_table_prompt(get_prompt:bool, 
-                                  table: Literal['functions_metadata','braches_metadata']
+                                  table: Literal['functions_metadata','branches_metadata']
                                   ):
         dtype_convert = {'string':'TEXT','integer':'TN'}  
 
@@ -92,7 +128,7 @@ class DB_handler(object):
                               ])
 
         if get_prompt:
-            return f"CREATE TABLE IF NOT EXISTS {table} (id INT PRIMARY KEY, {subfields});"
+            return f"CREATE TABLE {table} (id INT PRIMARY KEY, {subfields});"
         else:
             return (",".join([k for k, v in TypeAdapter(Function_Metadata).json_schema()['properties'].items()]), 
                     ",".join(['?']*_num_fields) )\
@@ -151,32 +187,6 @@ class DB_handler(object):
         """
         try:
             with self.connection:
-                del_prompt = """DROP TABLE IF EXISTS user_files;"""
-                self.connection.execute(del_prompt)
-
-                if self.db_type == 'test_cases':
-                    print('drop meta data')
-                    self.connection.execute("""DROP TABLE IF EXISTS functions_metadata;""")
-                    self.connection.execute("""DROP TABLE IF EXISTS branches_metadata;""")
-
-                if self.db_type == "implement":
-                    create_prompt = """
-CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RawContent TEXT, RenderContent TEXT);
-""" 
-                    self.connection.execute(create_prompt)
-                else:
-                    create_prompt = """
-CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RepoFileURL TEXT, impl_RawContent TEXT, moduleImport TEXT, test_RawContent TEXT , RenderContent TEXT);
-"""
-                    self.connection.execute(create_prompt)
-
-                    # create metadata table
-                    self.connection.execute(DB_handler.get_metadata_table_prompt(get_prompt=True,
-                                                                                 table='functions_metadata'))
-                    self.connection.execute(DB_handler.get_metadata_table_prompt(get_prompt=True,
-                                                                                 table='braches_metadata'))
-            
-            with self.connection:
                 prompt = """
                     INSERT INTO user_files (SearchFileUrl, RawContent, RenderContent) VALUES (?,?,?);
                 """ if self.db_type == "implement" else \
@@ -197,13 +207,13 @@ CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, R
                     
                     self.connection.executemany(sql,functions_meta_data)
                     
-                    _fields, _fields_inputs = DB_handler.get_metadata_table_prompt(get_prompt=False, table='braches_metadata')
+                    _fields, _fields_inputs = DB_handler.get_metadata_table_prompt(get_prompt=False, table='branches_metadata')
                     
-                    sql = "INSERT INTO braches_metadata " +\
+                    sql = "INSERT INTO branches_metadata " +\
                                 f"({_fields})" +\
                                 f"VALUES ({_fields_inputs});"
                     
-                    print(f'run insert braches_metadata, {self.db_type}, number of new data: {len(branches_meta_data)}')
+                    print(f'run insert branches_metadata, {self.db_type}, number of new data: {len(branches_meta_data)}')
                     self.connection.executemany(sql,branches_meta_data)
 
         except Exception as error:
@@ -236,24 +246,35 @@ CREATE TABLE IF NOT EXISTS user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, R
         outputs = []
         try:
             for (start_branch, end_branch) in missing_branches:
-                query_prompt = f"""SELECT class_name, function_name, type, start_line, body_content 
-FROM metadata 
+                query_function_prompt = f"""SELECT class_name, function_name, function_type, start_line, body_content 
+FROM functions_metadata 
 WHERE SearchFileUrl LIKE '%{url}'
 AND ((start_line <= {start_branch} AND end_line >= {end_branch}));"""
-                with self.connection:
-                    record = self.connection.execute(query_prompt).fetchall()[0]
                 
-                _class_name, _func_name, _type, _start_line, _body_content = record
+                query_branch_prompt = f"""SELECT branch_type, branch_content
+FROM branches_metadata
+WHERE SearchFileUrl LIKE '%{url}'
+AND ((branch_start_line <= {start_branch} AND branch_end_line >= {end_branch}));"""
+
+                with self.connection:
+
+                    (_class_name, _func_name, _type, _start_line, _body_content) = \
+                        self.connection.execute(query_function_prompt).fetchall()[0]
+
+                    (_branch_type, _branch_content) = \
+                        self.connection.execute(query_branch_prompt).fetchall()[0]
+                 
                 
                 # step 2: crop a subset (aka branch) of original funtion/method
-                query_branch =  "".join(_body_content.split("\n")[start_branch - _start_line: end_branch - _start_line])
-                outputs.append((_class_name, _func_name, _type, query_branch))
+                
+                outputs.append((_class_name, _func_name, _type, _body_content, _branch_type, _branch_content))
 
             return outputs
         
         except sqlite3.Error as error:
             print(f"Cannot peform select branch with file {url}, db type {self.db_type}, error: ", error)
             return None
+        
         except IndexError as error:
             print(f"Index error with file {url}, db type {self.db_type}, error: ", error)
             return None

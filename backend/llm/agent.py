@@ -198,7 +198,7 @@ class Agent(Gemini_Inference, PyTest_Environment):
         # params for target function
         prev_for_improve = []
         for module_dict  in self.data_repsonse_task['target_funcs']:
-            for module_path, test_calse_list in module_dict.items():
+            for module_path, test_case_list in module_dict.items():
 
                 project_dir2module_path = self.log_dir +'/' + module_path
                 splicover_params = cov_files[project_dir2module_path]
@@ -209,30 +209,36 @@ class Agent(Gemini_Inference, PyTest_Environment):
                                                     lines = splicover_params["missing_lines"],
                                                     missing_branches = splicover_params['missing_branches'])
 
-                for (_class_name, _func_name, _type, _missing_brach) in original_content:
+                for (_class_name, _func_name, _type, _body_content, _branch_type, _branch_content) in original_content:
                     
                     # not to insert output to DB so just do manual search
                     try:
                         correspoding_testcase = [test_cases
-                                                for (target, target_type, test_cases) in test_calse_list 
+                                                for (target, target_type, test_cases) in test_case_list 
                                                 if _class_name+'.'+_func_name in target and _type == target_type
                                                 ][0] #<-- select first element
 
                         prev_for_improve.append({
-                            'prev_testcases': correspoding_testcase, 
-                            'prev_cov': splicover_params["summary"]["percent_covered"], 
-                            'missing_lines_code': f"In function: {_func_name},\ncode segment: {_missing_brach}",
-                        })
+'prev_testcases': correspoding_testcase, 
+'prev_cov': splicover_params["summary"]["percent_covered"], 
+'missing_lines_code': \
+f"""
+- In function: {_func_name},
+- code segment:
+{_body_content}
+- missing branch type: {_branch_type}
+- missing line:
+{_branch_content}
+""",
+})
 
                     except IndexError as e:
                         print('index error in manual search: ',e)
-
-                    
         
         print('prev_for_improve: ',prev_for_improve)
 
-        # with open('temp_param_for_improve.json','w') as f:
-        #     json.dump(prev_for_improve, f, indent= 5)
+        with open('temp_param_for_improve.json','w') as f:
+            json.dump(prev_for_improve, f, indent= 5)
 
         return prev_for_improve
 

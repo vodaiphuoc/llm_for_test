@@ -11,47 +11,47 @@ class Gemini_Prompts(object):
 {{prev_testcases}}
     ** previous covarage value
 {{prev_cov}}
-    ** missing lines in target functions/classes
+    ** missing lines in original code
 {{missing_lines_code}}
     """
 
     improve_prompt = f"""
-        - Your previous testcase code got below covarage values for each testcase where 
-        some missing lines in target functions/classes which are not executed
-        when runing testcase with Pytest.
-        {{prev_cov_params}}
+- Your previous testcase code got below covarage values for each testcase where 
+some missing lines in target functions/classes which are not executed
+when runing testcase with Pytest.
+{{prev_cov_params}}
 
-        - Below are some examples showing a Original file path, Module import, and Functions and Output format:
-        **Example 1
-        {{example3}}
+- Below are some examples showing a Original file path, Module import, and Functions and Output format:
+**Example 1
+{{example3}}
 
-        - Now, re-write new testcases for below codes to increase the covarage value of each case and reduce the number of missing lines
-        using Pytest library only.
-        {{total_content}}
+- Now, re-write new testcases for below codes to increase the covarage value of each case and reduce the number of missing lines
+using Pytest library only.
+{{total_content}}
         """
 
     prompt = f"""
-        - Using pytest package in Python, write a testcase for the following Python file which include
-        may contains many Python functions (denote by def keyword). 
-        - Don't include content of function in your result, 
-        only testing functions. 
-        - You must write import functions or classes from 'Module import' and put it in `import_module_command` of format output
-        - Determine what are dependencies have to install outside of Python built-in modules, functions, types... and
-        put it in `intall_dependencies` of format output 
-        - Determine what are Python built-in dependencies, put it in `built_in_import` of format output
-        - Determine target of your testcases which is funtion name if it is a normal function or method name of the class if
-        it is a method inside the class, put it in `target` of format output, 
-        - Determine `target_type` of the `target`, can be `function` or `method` if it is method of the class
-        - Below are some examples showing a Original file path, Module import, and Functions and Output format:
-        **Example 1
-        {{example1}}
-        **Example 2
-        {{example2}}
-        **Example 3
-        {{example3}}
+- Using pytest package in Python, write a testcase for the following Python file which include
+may contains many Python functions (denote by def keyword). 
+- Don't include content of function in your result, 
+only testing functions. 
+- You must write import functions or classes from 'Module import' and put it in `import_module_command` of format output
+- Determine what are dependencies have to install outside of Python built-in modules, functions, types... and
+put it in `intall_dependencies` of format output 
+- Determine what are Python built-in dependencies, put it in `built_in_import` of format output
+- Determine target of your testcases which is funtion name if it is a normal function or method name of the class if
+it is a method inside the class, put it in `target` of format output, 
+- Determine `target_type` of the `target`, can be `function` or `method` if it is method of the class
+- Below are some examples showing a Original file path, Module import, and Functions and Output format:
+**Example 1
+{{example1}}
+**Example 2
+{{example2}}
+**Example 3
+{{example3}}
 
-        - Now, give output with below tasks:
-        {{total_content}}
+- Now, give output with below tasks:
+{{total_content}}
         """
 
     example1 = """
