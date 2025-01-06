@@ -244,18 +244,18 @@ CREATE TABLE user_files (id INT PRIMARY KEY, SearchFileUrl TEXT, RepoFileURL TEX
 
         # step 1: find original functions/methods which are not executed
         outputs = []
-        try:
-            for (start_branch, end_branch) in missing_branches:
-                query_function_prompt = f"""SELECT class_name, function_name, function_type, start_line, body_content 
+        for (start_branch, end_branch) in missing_branches:
+            query_function_prompt = f"""SELECT class_name, function_name, function_type, start_line, body_content 
 FROM functions_metadata 
 WHERE SearchFileUrl LIKE '%{url}'
 AND ((start_line <= {start_branch} AND end_line >= {end_branch}));"""
                 
-                query_branch_prompt = f"""SELECT branch_type, branch_content
+            query_branch_prompt = f"""SELECT branch_type, branch_content
 FROM branches_metadata
 WHERE SearchFileUrl LIKE '%{url}'
 AND ((branch_start_line <= {start_branch} AND branch_end_line >= {end_branch}));"""
 
+            try:
                 with self.connection:
 
                     (_class_name, _func_name, _type, _start_line, _body_content) = \
@@ -263,21 +263,20 @@ AND ((branch_start_line <= {start_branch} AND branch_end_line >= {end_branch}));
 
                     (_branch_type, _branch_content) = \
                         self.connection.execute(query_branch_prompt).fetchall()[0]
-                 
                 
                 # step 2: crop a subset (aka branch) of original funtion/method
-                
                 outputs.append((_class_name, _func_name, _type, _body_content, _branch_type, _branch_content))
 
+            except sqlite3.Error as error:
+                print(f"Cannot peform select branch with file {url}, db type {self.db_type}, error: ", error)
+                return None
+    
+            except IndexError as error:
+                print(f"Index error with file {url}, db type {self.db_type}, error: ", error)
+                return None
+                
             return outputs
         
-        except sqlite3.Error as error:
-            print(f"Cannot peform select branch with file {url}, db type {self.db_type}, error: ", error)
-            return None
-        
-        except IndexError as error:
-            print(f"Index error with file {url}, db type {self.db_type}, error: ", error)
-            return None
         
 
     def show_table(self)->List[Tuple[str]]:

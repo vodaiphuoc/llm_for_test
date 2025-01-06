@@ -41,8 +41,9 @@ def get_branch_from_function(SearchFileUrl:str,
     branches = []
     for _branch in function_tree.body:
         if isinstance(_branch, ast.For) or isinstance(_branch, ast.If):
+
             branches.append(Branch_Metadata(SearchFileUrl = SearchFileUrl,
-                                            class_name=  class_name,
+                                            class_name = class_name,
                                             function_name = function_tree.name,
                                             function_type = function_type,
                                             branch_start_line =  _branch.lineno, 
@@ -50,7 +51,9 @@ def get_branch_from_function(SearchFileUrl:str,
                                             branch_type = type(_branch).__name__,
                                             branch_content = "".join(total_lines[_branch.lineno -1: _branch.end_lineno])
             ))
-                
+            
+
+
         else:
             continue
     return func_metadata, branches

@@ -15,3 +15,4 @@ example_google.py
 .pytest_cache/
 *.txt
 temp*.json
+massive_data/

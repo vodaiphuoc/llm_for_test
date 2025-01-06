@@ -162,7 +162,7 @@ async def upload_files_router(params: Annotated[UploadFileDependencies,
         return JSONResponse(status_code=500,content='')
 
 
-@app.get("/load_py/", response_class=JSONResponse)
+@app.get("/load_py/a", response_class=JSONResponse)
 async def get_file_content(file_name:str, request: Request):
     """Receive get request from front-end"""
     try:

@@ -8,30 +8,47 @@ from main import GenerateTasksDependencies, generate_test_cases
 import asyncio
 import pathlib
 
-def upload_files_api(implement_db = None, 
-                     test_cases_db = None, 
-                     model = None):
-    path2currFolder = pathlib.WindowsPath('D:\\Projects\\Test_coverage_LLM\\llm_for_test')
-    folder_name = 'codes'
+test_params = {
+    '1': {
+        'path2currFolder': 'D:\\Projects\\Test_coverage_LLM\\llm_for_test',
+        'full_list_files': [
+            'codes/implements/correct_implement.py', 
+            'codes/implements/implement_pattern.py', 
+            'codes/implements/leet_code_new.py', 
+            'codes/implements/leet_code2.py', 
+            'codes/implements/LLM.py', 
+            'codes/implements/model_llm.py', 
+            'codes/implements/my_function.py', 
+            'codes/implements_test_cases/test_my_function.py', 
+            'codes/requirements.txt'
+        ],
+        'file_list': ['codesPATHSPLITimplementsPATHSPLITcorrect_implement.py']
+    },
+    '2': {
+        'path2currFolder': 'D:\\Projects\\Test_coverage_LLM\\electron_app\\massive_data',
+        'full_list_files': [
+            'selective/main.py'
+        ],
+        'file_list': ['selectivePATHSPLITmain.py']
+    }
+}
 
-    full_list_files = [
-        'codes/implements/correct_implement.py', 
-        'codes/implements/implement_pattern.py', 
-        'codes/implements/leet_code_new.py', 
-        'codes/implements/leet_code2.py', 
-        'codes/implements/LLM.py', 
-        'codes/implements/model_llm.py', 
-        'codes/implements/my_function.py', 
-        'codes/implements_test_cases/test_my_function.py', 
-        'codes/requirements.txt'
-    ]
+
+
+def upload_files_api(params = test_params['2'],
+                     implement_db = None, 
+                     test_cases_db = None, 
+                     model = None
+                     ):
+    path2currFolder = pathlib.WindowsPath(params['path2currFolder'])
+    folder_name = 'selective'
 
     test_cases_db = DB_handler('db/test_cases.db') if test_cases_db is None else test_cases_db
     model = Agent(test_cases_db) if model is None else model
 
     asyncio.run(upload_files_router(params= UploadFileDependencies(request_data = \
                         UploadFilesBody_Testing(path2currDir = path2currFolder,
-                            list_files = full_list_files,
+                            list_files = params['full_list_files'],
                             selected_folder_name = folder_name,
                             implement_db = DB_handler('db/implement.db') if implement_db is None else implement_db,
                             test_cases_db = test_cases_db,
@@ -41,20 +58,20 @@ def upload_files_api(implement_db = None,
     if implement_db is None:
         test_cases_db.close()
 
-def gen_testcases_api():
+def gen_testcases_api(params = test_params['2']):
     
     test_cases_db = DB_handler('db/test_cases.db')
     model = Agent(test_cases_db)
-    
     
     gen_params = {
         'model': model,
         'run_improve': False,
         'test_cases_db': test_cases_db,
-        'request_file_dict': {'file_list': ['codesPATHSPLITimplementsPATHSPLITcorrect_implement.py']}
+        'request_file_dict': {'file_list': params['file_list']}
     }
     
-    upload_files_api(implement_db = DB_handler('db/implement.db'), 
+    upload_files_api(params = params,
+                     implement_db = DB_handler('db/implement.db'), 
                      test_cases_db = test_cases_db, 
                      model = model)
 

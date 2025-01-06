@@ -1,4 +1,4 @@
-from llm.model_hub import Gemini_Inference
+from llm.gemini import Gemini_Inference
 from databases.llm_data_model import Single_LLM_Output
 from databases.db import Dependencies_DB_Handler, DB_handler
 import glob
@@ -31,7 +31,12 @@ class PyTest_Environment(object):
         
         # clean everything in user repo
         for _dir in glob.glob(self.temp_user_repo+'/*'):
-            shutil.rmtree(_dir, ignore_errors=True)
+            if os.path.isdir(_dir):
+                shutil.rmtree(_dir, ignore_errors=True)
+            else:
+                # this is for file
+                os.remove(_dir)
+
         # remove all files except Readme.md
         for _file in glob.glob(pathname= '*[.py,.xml]', root_dir=pytest_dir):
             os.remove(pytest_dir+'/'+_file)
@@ -209,36 +214,32 @@ class Agent(Gemini_Inference, PyTest_Environment):
                                                     lines = splicover_params["missing_lines"],
                                                     missing_branches = splicover_params['missing_branches'])
 
-                for (_class_name, _func_name, _type, _body_content, _branch_type, _branch_content) in original_content:
+                for (_class_name, _func_name, _func_type, _body_content, _branch_type, _branch_content) in original_content:
                     
                     # not to insert output to DB so just do manual search
                     try:
-                        correspoding_testcase = [test_cases
-                                                for (target, target_type, test_cases) in test_case_list 
-                                                if _class_name+'.'+_func_name in target and _type == target_type
-                                                ][0] #<-- select first element
+                        query_testcase = [ test_cases
+                                            for (target, target_type, test_cases) in test_case_list 
+                                            if (_str_target:= _class_name+'.'+_func_name if _class_name != '' else _func_name) 
+                                                in target and _func_type == target_type
+                                            ]
+                        correspoding_testcase = query_testcase[0] #<-- select first element
 
                         prev_for_improve.append({
-'prev_testcases': correspoding_testcase, 
-'prev_cov': splicover_params["summary"]["percent_covered"], 
-'missing_lines_code': \
-f"""
-- In function: {_func_name},
-- code segment:
-{_body_content}
-- missing branch type: {_branch_type}
-- missing line:
-{_branch_content}
-""",
-})
+                            'prev_testcases': correspoding_testcase,
+                            # 'prev_cov': splicover_params["summary"]["percent_covered"], 
+                            # 'func_name': _func_name,
+                            'body_content': _body_content,
+                            'branch_type': _branch_type,
+                            'branch_content': _branch_content
+                        })
 
                     except IndexError as e:
                         print('index error in manual search: ',e)
+                        print('test_case_list: ',test_case_list)
+                        print('target in original content: ',_str_target)
         
         print('prev_for_improve: ',prev_for_improve)
-
-        with open('temp_param_for_improve.json','w') as f:
-            json.dump(prev_for_improve, f, indent= 5)
 
         return prev_for_improve
 
@@ -246,9 +247,8 @@ f"""
         """Run model in batch"""
         batch_reponse = ''
         for single_prompt in batch_prompt:
-            batch_reponse += self(input_prompt = single_prompt, 
-                                  use_improve = self.run_improve,
-                                  cov_data = self.get_prev_cov_result() if self.run_improve else None
+            batch_reponse += self(mode = 'improve' if self.run_improve else 'normal',
+                                  input_data = self.get_prev_cov_result() if self.run_improve else single_prompt
                                   )
         return batch_reponse
 
@@ -270,19 +270,19 @@ f"""
                 )) == 3
             ]
         # prepare input
-        batch_prompt = []
-        total_content = ''
-        for content_dict in file_contents:
-            current_file_content = self.single_content.format(**content_dict)
-            if len(total_content.split(' ')) + \
-                    len(current_file_content.split(' ')) > self.context_length:
-                batch_prompt.append(total_content)
-                total_content = ''
-                total_content += ' '+current_file_content
-            else:
-                total_content += ' '+current_file_content
-        batch_prompt.append(total_content)
-        self.data_repsonse_task['prepare_input'] = batch_prompt
+        # batch_prompt = []
+        # total_content = ''
+        # for content_dict in file_contents:
+        #     current_file_content = self.single_content.format(**content_dict)
+        #     if len(total_content.split(' ')) + \
+        #             len(current_file_content.split(' ')) > self.context_length:
+        #         batch_prompt.append(total_content)
+        #         total_content = ''
+        #         total_content += ' '+current_file_content
+        #     else:
+        #         total_content += ' '+current_file_content
+        # batch_prompt.append(total_content)
+        self.data_repsonse_task['prepare_input'] = file_contents
         return True
 
     # task
@@ -290,7 +290,12 @@ f"""
         assert self.data_repsonse_task['prepare_input'] is not None
         batch_prompt = self.data_repsonse_task['prepare_input']
         # inference
-        batch_reponse = self.run_batch(batch_prompt)
+        # batch_reponse = self.run_batch(batch_prompt)
+
+        batch_reponse = self(mode = 'improve' if self.run_improve else 'normal',
+                                  input_data = self.get_prev_cov_result() if self.run_improve else batch_prompt
+                                  )
+
         reponse_dict = json.loads(batch_reponse)
         self.data_repsonse_task['create_testcases'] = reponse_dict
         return True

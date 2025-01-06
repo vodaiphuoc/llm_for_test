@@ -1,34 +1,57 @@
-from databases.llm_data_model import LLM_Output
-import os
-from typing import Literal, List, Dict, Union
-from dotenv import load_dotenv
-import google.generativeai as genai
+from abc import ABC, abstractmethod
+from typing import List, Any, Union
 
-class Gemini_Prompts(object):
+class Base_Prompts(ABC):
+    @abstractmethod
+    def input_parse()->int:
+        pass
 
-    prev_cov_params = f"""
-    ** Your previous testcases
-{{prev_testcases}}
-    ** previous covarage value
-{{prev_cov}}
-    ** missing lines in original code
-{{missing_lines_code}}
-    """
-
-    improve_prompt = f"""
+class Improve_Prompts(Base_Prompts):
+    prompt = f"""
 - Your previous testcase code got below covarage values for each testcase where 
-some missing lines in target functions/classes which are not executed
-when runing testcase with Pytest.
-{{prev_cov_params}}
+some missing lines in target functions/classes which are not executed when runing testcase with Pytest.
 
-- Below are some examples showing a Original file path, Module import, and Functions and Output format:
-**Example 1
-{{example3}}
+** Orginal code
+{{body_content}}
 
-- Now, re-write new testcases for below codes to increase the covarage value of each case and reduce the number of missing lines
+** Your previous testcases
+```python
+{{prev_testcases}}
+
+** missing lines in original code    
+- missing branch type: {{branch_type}}
+- missing line had not executed:
+```python
+{{branch_content}}
+    ```
+
+Now, peform belove tasks:
+    - Re-write new testcases with suitable input arguemnts for below codes to increase the covarage value of each case and reduce the number of missing lines
 using Pytest library only.
-{{total_content}}
-        """
+{{body_content}}
+"""
+
+    def input_parse(body_content:str, 
+                    prev_testcases:str, 
+                    branch_type:str, 
+                    branch_content:str)->str:
+        
+        return Improve_Prompts.prompt.format(body_content = body_content, 
+                                             prev_testcases = prev_testcases,
+                                             branch_type = branch_type,
+                                             branch_content = branch_content
+                                             )
+
+class Normal_Prompts(Base_Prompts):
+
+    single_content = f"""
+**Original file path
+{{repo_url}}
+**Module import:
+{{module_path}}
+**Functions:
+{{file_content}}
+"""
 
     prompt = f"""
 - Using pytest package in Python, write a testcase for the following Python file which include
@@ -37,7 +60,7 @@ may contains many Python functions (denote by def keyword).
 only testing functions. 
 - You must write import functions or classes from 'Module import' and put it in `import_module_command` of format output
 - Determine what are dependencies have to install outside of Python built-in modules, functions, types... and
-put it in `intall_dependencies` of format output 
+put it in `intall_dependencies` of format output with command like `import dependencies_name`
 - Determine what are Python built-in dependencies, put it in `built_in_import` of format output
 - Determine target of your testcases which is funtion name if it is a normal function or method name of the class if
 it is a method inside the class, put it in `target` of format output, 
@@ -249,76 +272,13 @@ def test_simple_palindromes():
     assert pairs_instance.palindromePairs(words) == expected
 }
 """
+    
+    def input_parse(input_data: Union[str, List[str]])->str:
+        input_data = "\n".join([Normal_Prompts.single_content.format(**content_dict)
+                        for content_dict in input_data
+                        ])
 
-
-class Gemini_Inference(Gemini_Prompts):
-    gemma_prompt = f"<start_of_turn>user\n{{input_prompt}}<end_of_turn><eos>\n"
-
-    def __init__(self,
-                model_url:str = 'gemini-1.5-flash'):
-        super().__init__()
-
-        load_dotenv()
-        genai.configure(api_key=os.environ['gemini_key'])
-        self.model = genai.GenerativeModel(model_url)
-        
-
-        model_info = genai.get_model(f"models/{model_url}")
-        # print(f"{model_info.input_token_limit=}")
-
-        raw_prompt = self.prompt.format(example1 = self.example1,
-                                          example2 = self.example2, 
-                                          example3 = self.example3,
-                                          cov_improve = "",
-                                          final_instruction = "",
-                                          total_content = "")
-        # print("total based tokens: ", self.model.count_tokens(raw_prompt))
-        # print("total cached tokens: ", self.model.count_tokens(raw_prompt).cached_content_token_count)
-
-        self.context_length = model_info.input_token_limit - \
-                                self.model.count_tokens(raw_prompt).total_tokens
-
-        print('self.context_length: ', self.context_length)
-
-    def __call__(self,
-                 input_prompt: Union[str, List[str]],
-                 use_improve:bool = False,
-                 cov_data: List[dict] = None,
-                 )->Union[str, List[str]]:
-        """
-        cov_data = [{
-            'prev_testcases': ..., 
-            'prev_cov': ..., 
-            'missing_lines_code': ..., 
-        }]
-        """
-        if use_improve:
-            assert cov_data is not None
-            
-            completed_cov_params = "\n".join([self.prev_cov_params.format(**cov_param) 
-                                              for cov_param in cov_data])
-            total_prompt = self.improve_prompt.format(prev_cov_params = completed_cov_params,
-                                                      example3 = self.example3,
-                                                      total_content = input_prompt)
-            
-        else:
-            total_prompt = self.prompt.format(example1 = self.example1,
-                                            example2 = self.example2, 
-                                            example3 = self.example3,
-                                            total_content = input_prompt)
-            
-        
-        final_prompt = self.gemma_prompt.format(input_prompt = total_prompt)
-        # save input prompt
-        file_name = 'temp_prompt_improve.txt' if use_improve else 'temp_prompt.txt'
-        with open(file_name,'w') as f:
-            f.write(final_prompt)
-            f.close()
-
-        response = self.model.generate_content(contents = final_prompt, 
-                                               generation_config = genai.GenerationConfig(
-                                                response_schema = LLM_Output,
-                                                response_mime_type = "application/json"
-                                                )
-        )
-        return response.text.replace('```the function:','').replace('```','').replace('python','')
+        return Normal_Prompts.prompt.format(example1 = Normal_Prompts.example1,
+                                            example2 = Normal_Prompts.example2, 
+                                            example3 = Normal_Prompts.example3,
+                                            total_content = input_data)
