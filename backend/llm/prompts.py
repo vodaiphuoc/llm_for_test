@@ -11,6 +11,10 @@ class Improve_Prompts(Base_Prompts):
 - Your previous testcase code got below covarage values for each testcase where 
 some missing lines in target functions/classes which are not executed when runing testcase with Pytest.
 
+**Original file path
+{{repo_url}}
+**Module import:
+{{module_path}}
 ** Orginal code
 {{body_content}}
 
@@ -25,22 +29,35 @@ some missing lines in target functions/classes which are not executed when runin
 {{branch_content}}
     ```
 
+- Below are some examples showing a Original file path, Module import, and Functions and Output format:
+**Example 1
+{{example_format}}
+
+
 Now, peform belove tasks:
     - Re-write new testcases with suitable input arguemnts for below codes to increase the covarage value of each case and reduce the number of missing lines
-using Pytest library only.
+using Pytest library only. The new testcase has to follow above example of format
 {{body_content}}
 """
 
-    def input_parse(body_content:str, 
+    def input_parse(repo_url:str,
+                    module_path:str,
+                    body_content:str, 
                     prev_testcases:str, 
                     branch_type:str, 
                     branch_content:str)->str:
-        
-        return Improve_Prompts.prompt.format(body_content = body_content, 
+        print('run input parse in improve_prompts')
+        return Improve_Prompts.prompt.format(repo_url = repo_url,
+                                             module_path = module_path,
+                                             body_content = body_content, 
                                              prev_testcases = prev_testcases,
                                              branch_type = branch_type,
-                                             branch_content = branch_content
+                                             branch_content = branch_content,
+                                             example_format = Normal_Prompts.example2
                                              )
+
+
+
 
 class Normal_Prompts(Base_Prompts):
 

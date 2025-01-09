@@ -214,7 +214,8 @@ class Agent(Gemini_Inference, PyTest_Environment):
                                                     lines = splicover_params["missing_lines"],
                                                     missing_branches = splicover_params['missing_branches'])
 
-                for (_class_name, _func_name, _func_type, _body_content, _branch_type, _branch_content) in original_content:
+                for (_SearchFileUrl, _class_name, _func_name, _func_type,
+                      _body_content, _branch_type, _branch_content) in original_content:
                     
                     # not to insert output to DB so just do manual search
                     try:
@@ -225,11 +226,15 @@ class Agent(Gemini_Inference, PyTest_Environment):
                                             ]
                         correspoding_testcase = query_testcase[0] #<-- select first element
 
+                        # search `repo_url`, `module_path` with `_SearchFileUrl`
+                        query_result = self.test_cases_db.get_content_from_url(url = _SearchFileUrl,
+                                                                                content_type='RawContent')
+                        
                         prev_for_improve.append({
-                            'prev_testcases': correspoding_testcase,
-                            # 'prev_cov': splicover_params["summary"]["percent_covered"], 
-                            # 'func_name': _func_name,
+                            'repo_url': query_result[0],
+                            'module_path': query_result[2],
                             'body_content': _body_content,
+                            'prev_testcases': correspoding_testcase,
                             'branch_type': _branch_type,
                             'branch_content': _branch_content
                         })
@@ -243,14 +248,14 @@ class Agent(Gemini_Inference, PyTest_Environment):
 
         return prev_for_improve
 
-    def run_batch(self, batch_prompt):
-        """Run model in batch"""
-        batch_reponse = ''
-        for single_prompt in batch_prompt:
-            batch_reponse += self(mode = 'improve' if self.run_improve else 'normal',
-                                  input_data = self.get_prev_cov_result() if self.run_improve else single_prompt
-                                  )
-        return batch_reponse
+    # def run_batch(self, batch_prompt):
+    #     """Run model in batch"""
+    #     batch_reponse = ''
+    #     for single_prompt in batch_prompt:
+    #         batch_reponse += self(mode = 'improve' if self.run_improve else 'normal',
+    #                               input_data = self.get_prev_cov_result() if self.run_improve else single_prompt
+    #                               )
+    #     return batch_reponse
 
     # task
     def prepare_input(self,
@@ -297,6 +302,8 @@ class Agent(Gemini_Inference, PyTest_Environment):
                                   )
 
         reponse_dict = json.loads(batch_reponse)
+        if self.run_improve:
+            print('improve response key: ',reponse_dict.keys())
         self.data_repsonse_task['create_testcases'] = reponse_dict
         return True
 

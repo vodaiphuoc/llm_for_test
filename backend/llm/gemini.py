@@ -5,7 +5,7 @@ import os
 from typing import Literal, List, Dict, Union
 from dotenv import load_dotenv
 import google.generativeai as genai
-
+from uuid import uuid4
 
 class Gemini_Inference(Normal_Prompts, Improve_Prompts):
     """Base class for Gemini model"""
@@ -16,6 +16,13 @@ class Gemini_Inference(Normal_Prompts, Improve_Prompts):
         load_dotenv()
         genai.configure(api_key=os.environ['gemini_key'])
         self.model = genai.GenerativeModel(model_url)
+
+    def save_prompt(self, mode:str, final_prompt:str):
+        file_name = f'temp_prompt_{mode}_{uuid4()}.txt'
+        with open(file_name,'w') as f:
+            f.write(final_prompt)
+            f.close()
+
         
     def mode(func):
         def wrapper(self,**kwargs):
@@ -29,12 +36,15 @@ class Gemini_Inference(Normal_Prompts, Improve_Prompts):
             
             if kwargs['mode'] == 'normal':
                 gen_promt_func = Gemini_Inference.mro()[1].__dict__['input_parse']
-                return func(self,content = gen_promt_func(kwargs.get('input_data')))
+                return func(self,content = gen_promt_func(kwargs.get('input_data')), mode = kwargs['mode'])
 
             elif kwargs['mode'] == 'improve':
                 gen_promt_func = Gemini_Inference.mro()[2].__dict__['input_parse']
-
-                return "\n".join([func(self,content = gen_promt_func(**sub_data))
+                
+                return "\n".join([func(self,
+                                       content = gen_promt_func(**sub_data), 
+                                       mode = kwargs['mode']
+                                       )
                         for sub_data in kwargs.get('input_data')
                         ])
 
@@ -44,7 +54,8 @@ class Gemini_Inference(Normal_Prompts, Improve_Prompts):
         return wrapper
     
     @mode
-    def __call__(self, content: str)->str:
+    def __call__(self, content: str, mode:str)->str:
+        self.save_prompt(mode= mode, final_prompt= content)
         final_prompt = self.gemma_prompt.format(content = content)
 
         response = self.model.generate_content(contents = final_prompt, 
@@ -54,6 +65,36 @@ class Gemini_Inference(Normal_Prompts, Improve_Prompts):
                                                 )
         )
         return response.text.replace('```the function:','').replace('```','').replace('python','')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # class Gemini_Prompts(object):
