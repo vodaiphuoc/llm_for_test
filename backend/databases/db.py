@@ -260,7 +260,7 @@ AND ((branch_start_line <= {start_branch} AND branch_end_line >= {end_branch}));
 
                     (_SearchFileUrl, _class_name, _func_name, _type, _start_line, _body_content) = \
                         self.connection.execute(query_function_prompt).fetchall()[0]
-
+                    print('in db.get_functions: function name: ', _func_name, missing_branches)
                     (_branch_type, _branch_content) = \
                         self.connection.execute(query_branch_prompt).fetchall()[0]
                 

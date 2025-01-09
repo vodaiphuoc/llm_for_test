@@ -11,6 +11,7 @@ from loguru import logger
 import json
 import pathlib
 import re
+from copy import deepcopy
 
 class PyTest_Environment(object):
     def __init__(self,
@@ -83,15 +84,55 @@ class PyTest_Environment(object):
         ]
         print('done check .txt')
         return check_require_txt
+    
+
+    def _merge_improve_to_original(self, improve_llm_out):
+        """Replace function which has missing line with new testcase"""
+        assert self.data_repsonse_task['list_llm_output'] is not None
+        
+        original_llm_output: List[Single_LLM_Output] = self.data_repsonse_task['list_llm_output']
+
+        merged_llm_out = []
+        for llm_out in original_llm_output:
+            new_testcases = []
+            new_testcases.extend(llm_out.test_cases)
+            
+            for orgin_test in llm_out.test_cases:
+                new_testcases_found = [ new_testcase
+                    for new_out in improve_llm_out 
+                    for new_testcase in new_out.test_cases 
+                    if new_testcase['target'] == orgin_test['target']
+                ]
+                
+                if len(new_testcases_found) > 0:
+                    new_testcases.extend(new_testcases_found)
+        
+            merged_llm_out.append(Single_LLM_Output(original_file_path=llm_out.original_file_path, 
+                                                    import_module_command=llm_out.import_module_command, 
+                                                    intall_dependencies=llm_out.intall_dependencies, 
+                                                    built_in_import=llm_out.built_in_import, 
+                                                    test_cases=new_testcases)
+                                  )
+
+        return "\n".join([each_out.tostring() 
+                             for each_out in merged_llm_out])
+
 
     def write_testcases_file(self, model_reponse: List[Dict[str,str]])->Union[str, List[str]]:
         """this is called by agent"""
-        
+        default_keys_dict = {k:'' for k in Single_LLM_Output.__dataclass_fields__.keys()}
+
         list_llm_output = [Single_LLM_Output(**single_output)
+                           if len(single_output) == len(default_keys_dict)
+                           else Single_LLM_Output(**default_keys_dict | single_output)
                              for single_output in model_reponse]
         
-        content = "\n".join([each_out.tostring() 
-                             for each_out in list_llm_output])
+        if self.run_improve:
+            print('merge new content')
+            content = self._merge_improve_to_original(list_llm_output)
+        else:
+            content = "\n".join([each_out.tostring() 
+                                for each_out in list_llm_output])
 
         # all outputs stored in one file .py only
         file_name = str(uuid4())+'.py'
@@ -111,7 +152,7 @@ class PyTest_Environment(object):
             
             target_funcs.append({each_out.original_file_path: cases})
 
-        return file_name, list(set(duplicated_dependencies)), target_funcs
+        return file_name, list(set(duplicated_dependencies)), target_funcs, list_llm_output
 
     def check_install_dependencies(self, dependencies_list: List[str]):
         # get not installed packages
@@ -233,6 +274,7 @@ class Agent(Gemini_Inference, PyTest_Environment):
                         prev_for_improve.append({
                             'repo_url': query_result[0],
                             'module_path': query_result[2],
+                            'function_name': _func_name,
                             'body_content': _body_content,
                             'prev_testcases': correspoding_testcase,
                             'branch_type': _branch_type,
@@ -244,18 +286,8 @@ class Agent(Gemini_Inference, PyTest_Environment):
                         print('test_case_list: ',test_case_list)
                         print('target in original content: ',_str_target)
         
-        print('prev_for_improve: ',prev_for_improve)
-
+        print('number cases for improve: ',len(prev_for_improve))
         return prev_for_improve
-
-    # def run_batch(self, batch_prompt):
-    #     """Run model in batch"""
-    #     batch_reponse = ''
-    #     for single_prompt in batch_prompt:
-    #         batch_reponse += self(mode = 'improve' if self.run_improve else 'normal',
-    #                               input_data = self.get_prev_cov_result() if self.run_improve else single_prompt
-    #                               )
-    #     return batch_reponse
 
     # task
     def prepare_input(self,
@@ -273,20 +305,7 @@ class Agent(Gemini_Inference, PyTest_Environment):
                 if len((query_result:= test_cases_db.get_content_from_url(url = file_name,
                                                             content_type='RawContent')
                 )) == 3
-            ]
-        # prepare input
-        # batch_prompt = []
-        # total_content = ''
-        # for content_dict in file_contents:
-        #     current_file_content = self.single_content.format(**content_dict)
-        #     if len(total_content.split(' ')) + \
-        #             len(current_file_content.split(' ')) > self.context_length:
-        #         batch_prompt.append(total_content)
-        #         total_content = ''
-        #         total_content += ' '+current_file_content
-        #     else:
-        #         total_content += ' '+current_file_content
-        # batch_prompt.append(total_content)
+        ]
         self.data_repsonse_task['prepare_input'] = file_contents
         return True
 
@@ -295,15 +314,11 @@ class Agent(Gemini_Inference, PyTest_Environment):
         assert self.data_repsonse_task['prepare_input'] is not None
         batch_prompt = self.data_repsonse_task['prepare_input']
         # inference
-        # batch_reponse = self.run_batch(batch_prompt)
-
         batch_reponse = self(mode = 'improve' if self.run_improve else 'normal',
                                   input_data = self.get_prev_cov_result() if self.run_improve else batch_prompt
                                   )
 
         reponse_dict = json.loads(batch_reponse)
-        if self.run_improve:
-            print('improve response key: ',reponse_dict.keys())
         self.data_repsonse_task['create_testcases'] = reponse_dict
         return True
 
@@ -312,12 +327,16 @@ class Agent(Gemini_Inference, PyTest_Environment):
         assert self.data_repsonse_task['create_testcases'] is not None        
         reponse_dict = self.data_repsonse_task['create_testcases'] 
         # make one file.py contains all test cases
-        (output_temp_file_name, install_dependencies, target_funcs
+        (output_temp_file_name, install_dependencies, target_funcs, list_llm_output
         ) \
         = self.write_testcases_file(model_reponse = reponse_dict['total_reponse'])
 
         self.data_repsonse_task['check_dependencies'] = output_temp_file_name
         self.data_repsonse_task['target_funcs'] = target_funcs
+
+        # save `normal` outputs (original testcases) as type `Single_LLM_Output`
+        self.data_repsonse_task['list_llm_output'] = list_llm_output
+
         return self.check_install_dependencies(install_dependencies)
 
     # task

@@ -16,6 +16,7 @@ some missing lines in target functions/classes which are not executed when runin
 **Module import:
 {{module_path}}
 ** Orginal code
+{{function_name}}
 {{body_content}}
 
 ** Your previous testcases
@@ -33,15 +34,18 @@ some missing lines in target functions/classes which are not executed when runin
 **Example 1
 {{example_format}}
 
-
 Now, peform belove tasks:
     - Re-write new testcases with suitable input arguemnts for below codes to increase the covarage value of each case and reduce the number of missing lines
-using Pytest library only. The new testcase has to follow above example of format
+using Pytest library only. 
+    - The new testcase must follow Output format of **Example 1
+
+** Input
 {{body_content}}
 """
 
     def input_parse(repo_url:str,
                     module_path:str,
+                    function_name:str,
                     body_content:str, 
                     prev_testcases:str, 
                     branch_type:str, 
@@ -49,6 +53,7 @@ using Pytest library only. The new testcase has to follow above example of forma
         print('run input parse in improve_prompts')
         return Improve_Prompts.prompt.format(repo_url = repo_url,
                                              module_path = module_path,
+                                             function_name = function_name,
                                              body_content = body_content, 
                                              prev_testcases = prev_testcases,
                                              branch_type = branch_type,
